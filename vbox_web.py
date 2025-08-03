@@ -1005,6 +1005,14 @@ def api_get_auto_monitor_config():
     """获取自动监控配置"""
     logger.debug("API调用: /api/config/auto_monitor - 获取自动监控配置")
     try:
+        # 强制重新加载配置模块以避免缓存问题
+        import importlib
+        import sys
+        
+        if 'config' in sys.modules:
+            importlib.reload(sys.modules['config'])
+            logger.info("已重新加载config模块")
+        
         # 安全地导入配置
         from config import (
             AUTO_MONITOR_BUTTON_ENABLED,
@@ -1130,6 +1138,14 @@ def api_get_web_refresh_config():
     """获取Web自动刷新配置"""
     logger.debug("API调用: /api/config/web_refresh - 获取Web自动刷新配置")
     try:
+        # 强制重新加载配置模块以避免缓存问题
+        import importlib
+        import sys
+        
+        if 'config' in sys.modules:
+            importlib.reload(sys.modules['config'])
+            logger.info("已重新加载config模块")
+        
         # 安全地导入配置
         try:
             from config import (
@@ -1446,15 +1462,55 @@ def api_get_monitor_logs():
         if os.path.exists(MONITOR_LOG_FILE):
             try:
                 with open(MONITOR_LOG_FILE, 'r', encoding='utf-8') as f:
-                    # 读取最后100行日志
+                    # 读取最后200行日志（增加日志行数）
                     lines = f.readlines()
-                    recent_lines = lines[-100:] if len(lines) > 100 else lines
+                    recent_lines = lines[-200:] if len(lines) > 200 else lines
                     
                     for line in recent_lines:
                         line = line.strip()
                         if line:
-                            # 解析日志级别
+                            # 解析日志级别和时间戳
                             level = 'info'
+                            timestamp = None
+                            
+                            # 尝试解析时间戳和日志级别
+                            if ' - ' in line:
+                                parts = line.split(' - ', 3)  # 分割为4部分：时间戳、级别、模块、消息
+                                if len(parts) >= 4:
+                                    try:
+                                        # 解析时间戳格式: 2025-01-03 17:56:49,458
+                                        timestamp_str = parts[0].strip()
+                                        if ',' in timestamp_str:
+                                            timestamp_str = timestamp_str.split(',')[0]
+                                        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S').isoformat()
+                                        
+                                        # 解析日志级别
+                                        level_str = parts[1].strip().upper()
+                                        if level_str in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+                                            level = level_str.lower()
+                                        
+                                        # 解析模块名
+                                        module_name = parts[2].strip()
+                                        
+                                        # 解析消息内容
+                                        message_content = parts[3].strip()
+                                        
+                                        # 重新构建格式化的日志消息
+                                        formatted_message = f"{timestamp_str} - {level_str} - {module_name} - {message_content}"
+                                        
+                                        logs.append({
+                                            'message': formatted_message,
+                                            'level': level,
+                                            'timestamp': timestamp,
+                                            'module': module_name,
+                                            'raw_message': line
+                                        })
+                                        continue
+                                    except Exception as e:
+                                        logger.debug(f"解析日志行失败: {line}, 错误: {e}")
+                                        pass
+                            
+                            # 解析日志级别
                             if 'DEBUG' in line:
                                 level = 'debug'
                             elif 'INFO' in line:
@@ -1469,7 +1525,7 @@ def api_get_monitor_logs():
                             logs.append({
                                 'message': line,
                                 'level': level,
-                                'timestamp': datetime.now().isoformat()
+                                'timestamp': timestamp or datetime.now().isoformat()
                             })
             except Exception as e:
                 logger.error(f"读取监控日志文件失败: {e}")
@@ -1490,6 +1546,7 @@ def api_get_monitor_logs():
             'data': {
                 'logs': logs,
                 'total_lines': len(logs),
+                'file_size': os.path.getsize(MONITOR_LOG_FILE) if os.path.exists(MONITOR_LOG_FILE) else 0,
                 'timestamp': datetime.now().isoformat()
             },
             'message': f'获取监控日志成功，共 {len(logs)} 行',
@@ -1502,6 +1559,139 @@ def api_get_monitor_logs():
         return jsonify({
             'success': False,
             'message': f'获取监控日志失败: {str(e)}'
+        })
+
+@app.route('/api/logs/monitor/stream')
+def api_get_monitor_logs_stream():
+    """获取监控日志流（实时更新）"""
+    logger.debug("API调用: /api/logs/monitor/stream - 获取监控日志流")
+    try:
+        from config import MONITOR_LOG_FILE
+        
+        # 获取请求参数
+        last_position = request.args.get('position', 0, type=int)
+        max_lines = request.args.get('max_lines', 50, type=int)
+        
+        logs = []
+        current_position = 0
+        
+        if os.path.exists(MONITOR_LOG_FILE):
+            try:
+                with open(MONITOR_LOG_FILE, 'r', encoding='utf-8') as f:
+                    # 获取文件大小
+                    f.seek(0, 2)
+                    current_position = f.tell()
+                    
+                    # 如果文件大小没有变化，返回空结果
+                    if current_position <= last_position:
+                        response_data = {
+                            'success': True,
+                            'data': {
+                                'logs': [],
+                                'position': current_position,
+                                'file_size': current_position,
+                                'has_new_logs': False
+                            },
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        return jsonify(response_data)
+                    
+                    # 从上次位置开始读取新日志
+                    f.seek(last_position)
+                    new_lines = f.readlines()
+                    
+                    # 解析新日志
+                    for line in new_lines:
+                        line = line.strip()
+                        if line:
+                            # 解析日志级别和时间戳
+                            level = 'info'
+                            timestamp = None
+                            
+                            # 尝试解析时间戳和日志级别
+                            if ' - ' in line:
+                                parts = line.split(' - ', 3)  # 分割为4部分：时间戳、级别、模块、消息
+                                if len(parts) >= 4:
+                                    try:
+                                        # 解析时间戳格式: 2025-01-03 17:56:49,458
+                                        timestamp_str = parts[0].strip()
+                                        if ',' in timestamp_str:
+                                            timestamp_str = timestamp_str.split(',')[0]
+                                        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S').isoformat()
+                                        
+                                        # 解析日志级别
+                                        level_str = parts[1].strip().upper()
+                                        if level_str in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+                                            level = level_str.lower()
+                                        
+                                        # 解析模块名
+                                        module_name = parts[2].strip()
+                                        
+                                        # 解析消息内容
+                                        message_content = parts[3].strip()
+                                        
+                                        # 重新构建格式化的日志消息
+                                        formatted_message = f"{timestamp_str} - {level_str} - {module_name} - {message_content}"
+                                        
+                                        logs.append({
+                                            'message': formatted_message,
+                                            'level': level,
+                                            'timestamp': timestamp,
+                                            'module': module_name,
+                                            'raw_message': line
+                                        })
+                                        continue
+                                    except Exception as e:
+                                        logger.debug(f"解析日志行失败: {line}, 错误: {e}")
+                                        pass
+                            
+                            # 解析日志级别
+                            if 'DEBUG' in line:
+                                level = 'debug'
+                            elif 'INFO' in line:
+                                level = 'info'
+                            elif 'WARNING' in line:
+                                level = 'warning'
+                            elif 'ERROR' in line:
+                                level = 'error'
+                            elif 'CRITICAL' in line:
+                                level = 'critical'
+                            
+                            logs.append({
+                                'message': line,
+                                'level': level,
+                                'timestamp': timestamp or datetime.now().isoformat()
+                            })
+                            
+                            # 限制返回的日志行数
+                            if len(logs) >= max_lines:
+                                break
+                                
+            except Exception as e:
+                logger.error(f"读取监控日志流失败: {e}")
+                logs.append({
+                    'message': f'读取日志流失败: {str(e)}',
+                    'level': 'error',
+                    'timestamp': datetime.now().isoformat()
+                })
+        
+        response_data = {
+            'success': True,
+            'data': {
+                'logs': logs,
+                'position': current_position,
+                'file_size': current_position,
+                'has_new_logs': len(logs) > 0
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        logger.debug(f"返回日志流: 新日志行数={len(logs)}, 位置={current_position}")
+        return jsonify(response_data)
+    except Exception as e:
+        logger.error(f"获取监控日志流失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取监控日志流失败: {str(e)}'
         })
 
 # 在模块导入时初始化监控器

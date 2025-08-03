@@ -235,7 +235,7 @@ def main():
     # 创建配置文件
     create_config()
     
-    print()
+    print
     print("=== 启动监控系统 ===")
     
     # 启动Web应用

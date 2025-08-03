@@ -187,6 +187,30 @@
             color: #dc3545;
             font-weight: bold;
         }
+        
+        .log-line .text-primary {
+            color: #007bff !important;
+        }
+        
+        .log-line .text-info {
+            color: #17a2b8 !important;
+        }
+        
+        .log-line .text-warning {
+            color: #ffc107 !important;
+        }
+        
+        .log-line .text-danger {
+            color: #dc3545 !important;
+        }
+        
+        .log-line .text-muted {
+            color: #6c757d !important;
+        }
+        
+        .log-line .fw-bold {
+            font-weight: bold !important;
+        }
 
         #logsTerminal {
             background-color: #1e1e1e !important;
@@ -246,6 +270,18 @@
                             <button id="scanBtn" class="btn btn-outline-info btn-sm ms-2">
                                 <i class="fas fa-search me-1"></i>扫描
                             </button>
+                            <button id="reloadConfigBtn" class="btn btn-outline-warning btn-sm ms-2" onclick="reloadAllConfigs()" title="重新加载配置">
+                                <i class="fas fa-cog me-1"></i>重载配置
+                            </button>
+                            <button id="checkConfigBtn" class="btn btn-outline-info btn-sm ms-2" onclick="checkAndUpdateConfigs()" title="立即检查配置">
+                                <i class="fas fa-sync-alt me-1"></i>检查配置
+                            </button>
+                            <button id="debugConfigBtn" class="btn btn-outline-secondary btn-sm ms-2" onclick="checkAutoMonitorConfig()" title="调试自动监控配置">
+                                <i class="fas fa-bug me-1"></i>调试配置
+                            </button>
+                            <button id="forceSyncBtn" class="btn btn-outline-warning btn-sm ms-2" onclick="forceSyncConfig()" title="强制同步配置">
+                                <i class="fas fa-sync-alt fa-spin me-1"></i>强制同步
+                            </button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -302,7 +338,9 @@
                                         <strong>监控模式:</strong> <span id="monitorMode">-</span><br>
                                         <strong>虚拟机数量:</strong> <span id="vmCount">0</span><br>
                                         <strong>最后更新:</strong> <span id="lastUpdate">-</span><br>
-                                        <strong>选中目录:</strong> <span id="selectedDirectories">-</span>
+                                        <strong>选中目录:</strong> <span id="selectedDirectories">-</span><br>
+                                        <strong>配置状态:</strong> <span id="configStatus">已同步</span><br>
+                                        <strong>动态更新:</strong> <span id="dynamicUpdateStatus">运行中</span>
                                     </small>
                                 </div>
                                 <div class="mt-2">
@@ -405,6 +443,17 @@
                         <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLogs()" title="清空日志">
                             <i class="fas fa-trash"></i>
                         </button>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="filterLogs('all')" title="显示所有日志">
+                                全部
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterLogs('error')" title="只显示错误日志">
+                                错误
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="filterLogs('info')" title="只显示信息日志">
+                                信息
+                            </button>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                 </div>
@@ -430,6 +479,8 @@
         let autoRefreshInterval = null;
         let monitoringInterval = null;
         let vmList = [];
+        let configUpdateInterval = null; // 配置更新定时器
+        let lastConfigUpdate = 0; // 上次配置更新时间
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -440,6 +491,16 @@
             loadAutoMonitorConfig();
             loadWebRefreshConfig();
             setupEventListeners();
+            
+            // 启动动态配置更新
+            startDynamicConfigUpdate();
+            
+            // 延迟2秒后进行第一次配置检查，确保配置同步
+            setTimeout(async () => {
+                console.log('执行首次配置检查...');
+                await checkAndUpdateConfigs();
+                console.log('首次配置检查完成');
+            }, 2000);
         });
 
         // 设置事件监听器
@@ -480,14 +541,24 @@
             document.getElementById('autoRefreshToggle').addEventListener('change', function() {
                 const enabled = this.checked;
                 
+                console.log(`自动刷新按钮状态变更: ${enabled ? '开启' : '关闭'}`);
+                
                 // 直接更新配置文件中的AUTO_REFRESH_BUTTON_ENABLED
-                updateConfigParameter('AUTO_REFRESH_BUTTON_ENABLED', enabled);
+                updateConfigParameter('AUTO_REFRESH_BUTTON_ENABLED', enabled).then(() => {
+                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
+                    console.log('自动刷新按钮状态已更新，延迟重新加载Web自动刷新配置...');
+                    updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    setTimeout(() => {
+                        loadWebRefreshConfig();
+                        updateConfigStatus('已同步', '配置重新加载完成');
+                    }, 500); // 延迟500ms确保配置已写入
+                });
                 
                 if (enabled) {
-                    console.log('自动刷新开关已开启，启动自动刷新并保存配置');
+                    console.log('自动刷新已启用，启动自动刷新...');
                     startAutoRefresh();
                 } else {
-                    console.log('自动刷新开关已关闭，停止自动刷新并保存配置');
+                    console.log('自动刷新已禁用，停止自动刷新...');
                     stopAutoRefresh();
                 }
             });
@@ -497,8 +568,18 @@
                 const interval = parseInt(this.value);
                 const autoRefreshToggle = document.getElementById('autoRefreshToggle');
                 
+                console.log(`自动刷新间隔变更: ${interval}秒`);
+                
                 // 直接更新配置文件中的AUTO_REFRESH_INTERVAL_VALUE
-                updateConfigParameter('AUTO_REFRESH_INTERVAL_VALUE', interval);
+                updateConfigParameter('AUTO_REFRESH_INTERVAL_VALUE', interval).then(() => {
+                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
+                    console.log('自动刷新间隔已更新，延迟重新加载Web自动刷新配置...');
+                    updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    setTimeout(() => {
+                        loadWebRefreshConfig();
+                        updateConfigStatus('已同步', '配置重新加载完成');
+                    }, 500); // 延迟500ms确保配置已写入
+                });
                 
                 if (autoRefreshToggle.checked) {
                     // 如果自动刷新正在运行，重新启动以应用新间隔
@@ -517,17 +598,25 @@
                 const interval = document.getElementById('monitorInterval').value;
                 const autoStart = document.getElementById('autoStartToggle').checked;
                 
+                console.log(`自动监控按钮状态变更: ${enabled ? '开启' : '关闭'}`);
+                
                 // 直接更新配置文件中的AUTO_MONITOR_BUTTON_ENABLED
-                updateConfigParameter('AUTO_MONITOR_BUTTON_ENABLED', enabled);
+                updateConfigParameter('AUTO_MONITOR_BUTTON_ENABLED', enabled).then(() => {
+                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
+                    console.log('自动监控按钮状态已更新，延迟重新加载自动监控配置...');
+                    updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    setTimeout(() => {
+                        loadAutoMonitorConfig();
+                        updateConfigStatus('已同步', '配置重新加载完成');
+                    }, 500); // 延迟500ms确保配置已写入
+                });
                 
                 if (enabled) {
+                    console.log('自动监控已启用，启动监控...');
                     startMonitoring(interval, autoStart);
-                    // 保存配置
-                    saveAutoMonitorConfig();
                 } else {
+                    console.log('自动监控已禁用，停止监控...');
                     stopMonitoring();
-                    // 保存配置
-                    saveAutoMonitorConfig();
                 }
             });
 
@@ -536,16 +625,24 @@
                 const interval = parseInt(this.value);
                 const monitoringToggle = document.getElementById('monitoringToggle');
                 
+                console.log(`自动监控间隔变更: ${interval}秒`);
+                
                 // 直接更新配置文件中的AUTO_MONITOR_INTERVAL_VALUE
-                updateConfigParameter('AUTO_MONITOR_INTERVAL_VALUE', interval);
+                updateConfigParameter('AUTO_MONITOR_INTERVAL_VALUE', interval).then(() => {
+                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
+                    console.log('自动监控间隔已更新，延迟重新加载自动监控配置...');
+                    updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    setTimeout(() => {
+                        loadAutoMonitorConfig();
+                        updateConfigStatus('已同步', '配置重新加载完成');
+                    }, 500); // 延迟500ms确保配置已写入
+                });
                 
                 if (monitoringToggle.checked) {
                     // 如果监控正在运行，重新启动监控以应用新设置
                     const autoStart = document.getElementById('autoStartToggle').checked;
                     console.log('自动监控已启用，立即应用新间隔设置');
                     startMonitoring(interval, autoStart);
-                    // 保存配置
-                    saveAutoMonitorConfig();
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -557,8 +654,18 @@
                 const enabled = this.checked;
                 const monitoringToggle = document.getElementById('monitoringToggle');
                 
+                console.log(`自启动虚拟机按钮状态变更: ${enabled ? '开启' : '关闭'}`);
+                
                 // 直接更新配置文件中的AUTO_START_VM_BUTTON_ENABLED
-                updateConfigParameter('AUTO_START_VM_BUTTON_ENABLED', enabled);
+                updateConfigParameter('AUTO_START_VM_BUTTON_ENABLED', enabled).then(() => {
+                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
+                    console.log('自启动虚拟机按钮状态已更新，延迟重新加载自动监控配置...');
+                    updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    setTimeout(() => {
+                        loadAutoMonitorConfig();
+                        updateConfigStatus('已同步', '配置重新加载完成');
+                    }, 500); // 延迟500ms确保配置已写入
+                });
                 
                 if (monitoringToggle.checked) {
                     // 如果监控正在运行，重新启动监控以应用新设置
@@ -566,8 +673,6 @@
                     const autoStart = enabled;
                     console.log('自动监控已启用，立即应用新设置');
                     startMonitoring(interval, autoStart);
-                    // 保存配置
-                    saveAutoMonitorConfig();
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -1318,6 +1423,12 @@
                     // 使用新的配置结构
                     console.log('使用新的配置结构');
                     
+                    // 临时禁用change事件监听器，避免触发自动保存
+                    const originalMonitoringHandler = monitoringToggle.onchange;
+                    const originalAutoStartHandler = autoStartToggle.onchange;
+                    monitoringToggle.onchange = null;
+                    autoStartToggle.onchange = null;
+                    
                     // 设置自动监控按钮状态
                     const monitoringEnabled = config.button_enabled || false;
                     monitoringToggle.checked = monitoringEnabled;
@@ -1332,6 +1443,10 @@
                     const autoStartEnabled = config.auto_start_button_enabled || false;
                     autoStartToggle.checked = autoStartEnabled;
                     console.log('设置自启动虚拟机按钮状态:', autoStartEnabled);
+                    
+                    // 恢复change事件监听器
+                    monitoringToggle.onchange = originalMonitoringHandler;
+                    autoStartToggle.onchange = originalAutoStartHandler;
                     
                     // 不触发change事件，避免自动保存
                     console.log('配置加载完成，UI已更新');
@@ -1383,6 +1498,10 @@
                     // 使用新的配置结构
                     console.log('使用新的配置结构');
                     
+                    // 临时禁用change事件监听器，避免触发自动保存
+                    const originalChangeHandler = autoRefreshToggle.onchange;
+                    autoRefreshToggle.onchange = null;
+                    
                     // 设置自动刷新按钮状态
                     const refreshEnabled = config.button_enabled || false;
                     autoRefreshToggle.checked = refreshEnabled;
@@ -1392,6 +1511,9 @@
                     const refreshInterval = config.interval_value || 60;
                     autoRefreshInterval.value = refreshInterval;
                     console.log('设置自动刷新间隔:', refreshInterval);
+                    
+                    // 恢复change事件监听器
+                    autoRefreshToggle.onchange = originalChangeHandler;
                     
                     // 更新状态显示
                     updateAutoRefreshStatus(autoRefreshToggle.checked, parseInt(autoRefreshInterval.value));
@@ -1434,13 +1556,16 @@
                 
                 if (data.success) {
                     console.log(`配置参数 ${parameterName} 更新成功`);
+                    return Promise.resolve(data);
                 } else {
                     console.error(`配置参数 ${parameterName} 更新失败:`, data.message);
                     showAlert('danger', `配置参数更新失败: ${data.message}`);
+                    return Promise.reject(new Error(data.message));
                 }
             } catch (error) {
                 console.error(`更新配置参数 ${parameterName} 失败:`, error);
                 showAlert('danger', `配置参数更新失败: ${error.message}`);
+                return Promise.reject(error);
             }
         }
 
@@ -1694,6 +1819,8 @@
         let logsTerminal = null;
         let lastLogCount = 0;
         let isScrolledToBottom = true;
+        let lastLogPosition = 0;
+        let allLogs = [];
 
         // 显示日志查看模态框
         function showLogsModal() {
@@ -1740,59 +1867,52 @@
         // 更新日志显示
         async function updateLogs() {
             try {
-                const response = await fetch('/api/logs/monitor');
+                // 使用日志流API获取新日志
+                const response = await fetch(`/api/logs/monitor/stream?position=${lastLogPosition}&max_lines=100`);
                 const data = await response.json();
                 
                 if (data.success && logsTerminal) {
-                    const logs = data.data.logs;
-                    const currentLogCount = logs.length;
+                    const newLogs = data.data.logs;
+                    const hasNewLogs = data.data.has_new_logs;
+                    const currentPosition = data.data.position;
                     
-                    // 如果是第一次加载或者日志数量增加了，则更新显示
-                    if (lastLogCount === 0 || currentLogCount > lastLogCount) {
-                        // 保存当前滚动位置
-                        const wasAtBottom = isScrolledToBottom;
-                        
-                        // 清空终端内容
-                        logsTerminal.innerHTML = '';
-                        
-                        // 添加日志内容
-                        logs.forEach(log => {
-                            const logElement = document.createElement('div');
-                            logElement.className = `log-line ${log.level.toLowerCase()}`;
-                            
-                            // 根据日志级别设置颜色
-                            switch(log.level.toLowerCase()) {
-                                case 'error':
-                                    logElement.className += ' text-danger';
-                                    break;
-                                case 'warning':
-                                    logElement.className += ' text-warning';
-                                    break;
-                                case 'debug':
-                                    logElement.className += ' text-muted';
-                                    break;
-                                case 'info':
-                                default:
-                                    logElement.className += ' text-light';
-                                    break;
-                            }
-                            
-                            logElement.textContent = log.message;
-                            logsTerminal.appendChild(logElement);
-                        });
-                        
-                        // 如果之前在底部，则滚动到底部
-                        if (wasAtBottom) {
-                            logsTerminal.scrollTop = logsTerminal.scrollHeight;
+                    // 如果是第一次加载，获取完整日志
+                    if (lastLogCount === 0) {
+                        const fullResponse = await fetch('/api/logs/monitor');
+                        const fullData = await fullResponse.json();
+                        if (fullData.success) {
+                            allLogs = fullData.data.logs;
+                            lastLogCount = allLogs.length;
+                            lastLogPosition = data.data.file_size;
                         }
-                        
-                        // 更新日志计数
-                        lastLogCount = currentLogCount;
+                    } else if (hasNewLogs && newLogs.length > 0) {
+                        // 添加新日志到总日志列表
+                        allLogs = allLogs.concat(newLogs);
+                        lastLogCount = allLogs.length;
+                        lastLogPosition = currentPosition;
+                    }
+                    
+                    // 如果有新日志或者第一次加载，更新显示
+                    if (lastLogCount > 0) {
+                        // 更新日志显示
+                        updateLogsDisplay();
                         
                         // 显示日志状态
                         const statusElement = document.getElementById('logsStatus');
                         if (statusElement) {
-                            statusElement.textContent = `共 ${currentLogCount} 行日志，最后更新: ${new Date().toLocaleTimeString()}`;
+                            const updateTime = new Date().toLocaleTimeString();
+                            
+                            // 统计各级别日志数量
+                            const levelCounts = {};
+                            allLogs.forEach(log => {
+                                const level = log.level.toLowerCase();
+                                levelCounts[level] = (levelCounts[level] || 0) + 1;
+                            });
+                            
+                            const statusText = hasNewLogs ? 
+                                `共 ${lastLogCount} 行日志，有新日志，最后更新: ${updateTime} | DEBUG: ${levelCounts.debug || 0}, INFO: ${levelCounts.info || 0}, WARN: ${levelCounts.warning || 0}, ERROR: ${levelCounts.error || 0}` :
+                                `共 ${lastLogCount} 行日志，最后更新: ${updateTime} | DEBUG: ${levelCounts.debug || 0}, INFO: ${levelCounts.info || 0}, WARN: ${levelCounts.warning || 0}, ERROR: ${levelCounts.error || 0}`;
+                            statusElement.textContent = statusText;
                         }
                     }
                 }
@@ -1826,9 +1946,372 @@
             }
         }
 
+        // 日志过滤功能
+        let currentLogFilter = 'all';
+        
+        function filterLogs(level) {
+            currentLogFilter = level;
+            updateLogsDisplay();
+        }
+        
+        function updateLogsDisplay() {
+            if (!logsTerminal || allLogs.length === 0) return;
+            
+            // 清空终端内容
+            logsTerminal.innerHTML = '';
+            
+            // 根据过滤条件显示日志
+            const filteredLogs = currentLogFilter === 'all' ? 
+                allLogs : 
+                allLogs.filter(log => log.level.toLowerCase() === currentLogFilter);
+            
+            // 添加过滤后的日志内容
+            filteredLogs.forEach(log => {
+                const logElement = document.createElement('div');
+                logElement.className = `log-line ${log.level.toLowerCase()}`;
+                
+                // 根据日志级别设置颜色和样式
+                switch(log.level.toLowerCase()) {
+                    case 'error':
+                        logElement.className += ' text-danger';
+                        break;
+                    case 'warning':
+                        logElement.className += ' text-warning';
+                        break;
+                    case 'debug':
+                        logElement.className += ' text-muted';
+                        break;
+                    case 'info':
+                        logElement.className += ' text-info';
+                        break;
+                    case 'critical':
+                        logElement.className += ' text-danger fw-bold';
+                        break;
+                    default:
+                        logElement.className += ' text-light';
+                        break;
+                }
+                
+                // 如果有模块信息，添加模块标识
+                if (log.module) {
+                    const moduleSpan = document.createElement('span');
+                    moduleSpan.className = 'text-primary fw-bold';
+                    moduleSpan.textContent = `[${log.module}] `;
+                    logElement.appendChild(moduleSpan);
+                }
+                
+                // 添加日志消息
+                const messageSpan = document.createElement('span');
+                messageSpan.textContent = log.message;
+                logElement.appendChild(messageSpan);
+                
+                logsTerminal.appendChild(logElement);
+            });
+            
+            // 滚动到底部
+            logsTerminal.scrollTop = logsTerminal.scrollHeight;
+        }
+        
+        // 启动动态配置更新
+        function startDynamicConfigUpdate() {
+            console.log('启动动态配置更新...');
+            
+            // 每5秒检查一次配置更新
+            configUpdateInterval = setInterval(async () => {
+                try {
+                    console.log('=== 执行定期配置检查 ===');
+                    updateDynamicUpdateStatus('检查中...', '正在检查配置更新');
+                    await checkAndUpdateConfigs();
+                    updateDynamicUpdateStatus('运行中', '配置动态更新正常');
+                } catch (error) {
+                    console.error('动态配置更新失败:', error);
+                    updateDynamicUpdateStatus('错误', '配置动态更新失败');
+                }
+            }, 2000); // 缩短到2秒间隔，提高响应速度
+            
+            updateDynamicUpdateStatus('运行中', '动态配置更新已启动');
+            console.log('动态配置更新已启动，每2秒检查一次');
+        }
+        
+        // 停止动态配置更新
+        function stopDynamicConfigUpdate() {
+            if (configUpdateInterval) {
+                clearInterval(configUpdateInterval);
+                configUpdateInterval = null;
+                updateDynamicUpdateStatus('已停止', '动态配置更新已停止');
+                console.log('动态配置更新已停止');
+            }
+        }
+        
+        // 检查并更新配置
+        async function checkAndUpdateConfigs() {
+            try {
+                const currentTime = Date.now();
+                console.log('开始检查配置更新...');
+                
+                // 检查Web自动刷新配置
+                await checkWebRefreshConfig();
+                
+                // 检查自动监控配置
+                await checkAutoMonitorConfig();
+                
+                lastConfigUpdate = currentTime;
+                updateConfigStatus('已同步', '配置动态更新正常');
+                
+                console.log('配置检查完成，所有配置已同步');
+                
+            } catch (error) {
+                console.error('检查配置更新失败:', error);
+                updateConfigStatus('同步失败', '配置动态更新失败');
+            }
+        }
+        
+        // 检查Web自动刷新配置
+        async function checkWebRefreshConfig() {
+            try {
+                const response = await fetch('/api/config/web_refresh');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.data;
+                    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+                    const autoRefreshInterval = document.getElementById('autoRefreshInterval');
+                    
+                    console.log('=== 检查Web自动刷新配置 ===');
+                    console.log('配置文件状态:', {
+                        button_enabled: config.button_enabled,
+                        interval_value: config.interval_value
+                    });
+                    console.log('UI当前状态:', {
+                        autoRefreshToggle: autoRefreshToggle.checked,
+                        autoRefreshInterval: autoRefreshInterval.value
+                    });
+                    
+                    // 检查按钮状态是否需要更新
+                    const currentButtonState = autoRefreshToggle.checked;
+                    const configButtonState = config.button_enabled || false;
+                    
+                    if (currentButtonState !== configButtonState) {
+                        console.log(`Web自动刷新按钮状态需要更新: 当前=${currentButtonState}, 配置=${configButtonState}`);
+                        autoRefreshToggle.checked = configButtonState;
+                        
+                        // 更新状态显示
+                        updateAutoRefreshStatus(configButtonState, parseInt(autoRefreshInterval.value));
+                        
+                        // 如果状态变为启用，启动自动刷新
+                        if (configButtonState && !currentButtonState) {
+                            console.log('检测到自动刷新已启用，启动自动刷新...');
+                            startAutoRefresh();
+                        } else if (!configButtonState && currentButtonState) {
+                            console.log('检测到自动刷新已禁用，停止自动刷新...');
+                            stopAutoRefresh();
+                        }
+                    } else {
+                        console.log('Web自动刷新按钮状态已同步');
+                    }
+                    
+                    // 检查间隔值是否需要更新
+                    const currentInterval = parseInt(autoRefreshInterval.value);
+                    const configInterval = config.interval_value || 60;
+                    
+                    if (currentInterval !== configInterval) {
+                        console.log(`Web自动刷新间隔需要更新: 当前=${currentInterval}, 配置=${configInterval}`);
+                        autoRefreshInterval.value = configInterval;
+                        
+                        // 如果自动刷新正在运行，重新启动以应用新间隔
+                        if (autoRefreshToggle.checked) {
+                            console.log('检测到间隔已更改，重新启动自动刷新...');
+                            startAutoRefresh();
+                        }
+                    } else {
+                        console.log('Web自动刷新间隔已同步');
+                    }
+                    
+                    console.log('=== Web自动刷新配置检查完成 ===');
+                }
+            } catch (error) {
+                console.error('检查Web自动刷新配置失败:', error);
+            }
+        }
+        
+        // 强制同步配置
+        async function forceSyncConfig() {
+            try {
+                console.log('=== 强制同步配置开始 ===');
+                updateConfigStatus('同步中...', '正在强制同步配置');
+                
+                // 立即重新加载所有配置
+                await loadWebRefreshConfig();
+                await loadAutoMonitorConfig();
+                
+                // 立即检查配置
+                await checkWebRefreshConfig();
+                await checkAutoMonitorConfig();
+                
+                updateConfigStatus('已同步', '强制同步配置完成');
+                console.log('=== 强制同步配置完成 ===');
+                
+                // 显示成功提示
+                showAlert('success', '配置强制同步完成');
+                
+            } catch (error) {
+                console.error('强制同步配置失败:', error);
+                updateConfigStatus('同步失败', '强制同步配置失败');
+                showAlert('danger', '强制同步配置失败: ' + error.message);
+            }
+        }
+
+        // 检查自动监控配置
+        async function checkAutoMonitorConfig() {
+            try {
+                const response = await fetch('/api/config/auto_monitor');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.data;
+                    const monitoringToggle = document.getElementById('monitoringToggle');
+                    const monitorInterval = document.getElementById('monitorInterval');
+                    const autoStartToggle = document.getElementById('autoStartToggle');
+                    
+                    console.log('=== 检查自动监控配置 ===');
+                    console.log('配置文件状态:', {
+                        button_enabled: config.button_enabled,
+                        interval_value: config.interval_value,
+                        auto_start_button_enabled: config.auto_start_button_enabled
+                    });
+                    console.log('UI当前状态:', {
+                        monitoringToggle: monitoringToggle.checked,
+                        monitorInterval: monitorInterval.value,
+                        autoStartToggle: autoStartToggle.checked
+                    });
+                    
+                    let hasChanges = false;
+                    
+                    // 检查自动监控按钮状态
+                    const currentMonitoringState = monitoringToggle.checked;
+                    const configMonitoringState = config.button_enabled || false;
+                    
+                    if (currentMonitoringState !== configMonitoringState) {
+                        console.log(`自动监控按钮状态需要更新: 当前=${currentMonitoringState}, 配置=${configMonitoringState}`);
+                        monitoringToggle.checked = configMonitoringState;
+                        hasChanges = true;
+                        
+                        // 如果状态变为启用，启动监控
+                        if (configMonitoringState && !currentMonitoringState) {
+                            console.log('检测到自动监控已启用，启动监控...');
+                            const interval = monitorInterval.value;
+                            const autoStart = autoStartToggle.checked;
+                            startMonitoring(interval, autoStart);
+                        } else if (!configMonitoringState && currentMonitoringState) {
+                            console.log('检测到自动监控已禁用，停止监控...');
+                            stopMonitoring();
+                        }
+                    } else {
+                        console.log('自动监控按钮状态已同步');
+                    }
+                    
+                    // 检查监控间隔
+                    const currentMonitorInterval = parseInt(monitorInterval.value);
+                    const configMonitorInterval = config.interval_value || 30;
+                    
+                    if (currentMonitorInterval !== configMonitorInterval) {
+                        console.log(`自动监控间隔需要更新: 当前=${currentMonitorInterval}, 配置=${configMonitorInterval}`);
+                        monitorInterval.value = configMonitorInterval;
+                        hasChanges = true;
+                        
+                        // 如果监控正在运行，重新启动以应用新间隔
+                        if (monitoringToggle.checked) {
+                            console.log('检测到监控间隔已更改，重新启动监控...');
+                            const autoStart = autoStartToggle.checked;
+                            startMonitoring(configMonitorInterval, autoStart);
+                        }
+                    } else {
+                        console.log('自动监控间隔已同步');
+                    }
+                    
+                    // 检查自启动虚拟机按钮状态
+                    const currentAutoStartState = autoStartToggle.checked;
+                    const configAutoStartState = config.auto_start_button_enabled || false;
+                    
+                    if (currentAutoStartState !== configAutoStartState) {
+                        console.log(`自启动虚拟机按钮状态需要更新: 当前=${currentAutoStartState}, 配置=${configAutoStartState}`);
+                        autoStartToggle.checked = configAutoStartState;
+                        hasChanges = true;
+                        
+                        // 如果监控正在运行，重新启动以应用新设置
+                        if (monitoringToggle.checked) {
+                            console.log('检测到自启动设置已更改，重新启动监控...');
+                            const interval = monitorInterval.value;
+                            startMonitoring(interval, configAutoStartState);
+                        }
+                    } else {
+                        console.log('自启动虚拟机按钮状态已同步');
+                    }
+                    
+                    if (hasChanges) {
+                        console.log('检测到配置变化，更新UI状态');
+                        updateConfigStatus('已更新', '检测到配置变化并已同步');
+                    }
+                    
+                    console.log('=== 自动监控配置检查完成 ===');
+                }
+            } catch (error) {
+                console.error('检查自动监控配置失败:', error);
+            }
+        }
+        
+        // 更新配置状态显示
+        function updateConfigStatus(status, message = '') {
+            const configStatusElement = document.getElementById('configStatus');
+            if (configStatusElement) {
+                configStatusElement.textContent = status;
+                configStatusElement.className = status === '已同步' ? 'text-success' : 'text-warning';
+                if (message) {
+                    console.log(`配置状态: ${status} - ${message}`);
+                }
+            }
+        }
+        
+        // 更新动态更新状态显示
+        function updateDynamicUpdateStatus(status, message = '') {
+            const dynamicUpdateStatusElement = document.getElementById('dynamicUpdateStatus');
+            if (dynamicUpdateStatusElement) {
+                dynamicUpdateStatusElement.textContent = status;
+                dynamicUpdateStatusElement.className = status === '运行中' ? 'text-success' : 
+                                                    status === '已停止' ? 'text-warning' : 'text-danger';
+                if (message) {
+                    console.log(`动态更新状态: ${status} - ${message}`);
+                }
+            }
+        }
+        
+        // 重新加载所有配置
+        async function reloadAllConfigs() {
+            console.log('重新加载所有配置...');
+            updateConfigStatus('同步中...', '正在重新加载配置');
+            
+            try {
+                await loadWebRefreshConfig();
+                await loadAutoMonitorConfig();
+                console.log('所有配置重新加载完成');
+                updateConfigStatus('已同步', '配置重新加载完成');
+                showAlert('success', '配置重新加载完成');
+            } catch (error) {
+                console.error('重新加载配置失败:', error);
+                updateConfigStatus('同步失败', '配置重新加载失败');
+                showAlert('danger', '配置重新加载失败: ' + error.message);
+            }
+        }
+        
         // 模态框关闭时停止日志更新
         document.getElementById('logsModal').addEventListener('hidden.bs.modal', function() {
             stopLogsUpdate();
+        });
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', function() {
+            stopDynamicConfigUpdate();
+            console.log('页面卸载，清理动态配置更新定时器');
         });
 
         // 在加载虚拟机列表时添加启动失败标记
