@@ -267,6 +267,9 @@
                             <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-sync-alt me-1"></i>刷新
                             </button>
+                            <button id="viewLogsBtn" class="btn btn-outline-info btn-sm ms-2">
+                                <i class="fas fa-terminal me-1"></i>查看日志
+                            </button>
                             <button id="scanBtn" class="btn btn-outline-info btn-sm ms-2">
                                 <i class="fas fa-search me-1"></i>扫描
                             </button>
@@ -342,11 +345,6 @@
                                         <strong>配置状态:</strong> <span id="configStatus">已同步</span><br>
                                         <strong>动态更新:</strong> <span id="dynamicUpdateStatus">运行中</span>
                                     </small>
-                                </div>
-                                <div class="mt-2">
-                                    <button id="viewLogsBtn" class="btn btn-outline-info btn-sm">
-                                        <i class="fas fa-terminal me-1"></i>查看日志
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -701,6 +699,9 @@
                     const autoStart = document.getElementById('autoStartToggle').checked;
                     console.log('自动监控已启用，立即应用新间隔设置');
                     startMonitoring(interval, autoStart);
+                    
+                    // 更新监控结果检查间隔
+                    updateMonitorResultsCheckInterval();
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -731,6 +732,9 @@
                     const autoStart = enabled;
                     console.log('自动监控已启用，立即应用新设置');
                     startMonitoring(interval, autoStart);
+                    
+                    // 更新监控结果检查间隔
+                    updateMonitorResultsCheckInterval();
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -1299,13 +1303,42 @@
 
         // 监控结果检查
         let monitorResultsInterval = null;
+        let currentCheckInterval = 0; // 记录当前的检查间隔
 
         function startMonitorResultsCheck() {
             if (monitorResultsInterval) {
                 clearInterval(monitorResultsInterval);
             }
-            monitorResultsInterval = setInterval(checkMonitorResults, 10000); // 10秒检查一次
-            console.log('监控结果检查已启动');
+            
+            // 动态获取当前监控间隔设置
+            const checkInterval = getCurrentMonitorResultsCheckInterval();
+            const monitorInterval = parseInt(document.getElementById('monitorInterval').value) || 30;
+            
+            currentCheckInterval = checkInterval; // 记录当前间隔
+            
+            monitorResultsInterval = setInterval(() => {
+                checkMonitorResults();
+            }, checkInterval * 1000);
+            
+            console.log(`监控结果检查已启动，间隔: ${checkInterval}秒 (基于监控间隔: ${monitorInterval}秒)`);
+            console.debug(`间隔计算详情: 监控间隔=${monitorInterval}秒, 检查间隔=${checkInterval}秒`);
+        }
+        
+        function updateMonitorResultsCheckInterval() {
+            // 如果监控结果检查正在运行，重新启动以应用新间隔
+            if (monitorResultsInterval) {
+                console.log('更新监控结果检查间隔...');
+                startMonitorResultsCheck();
+            }
+        }
+        
+        // 获取当前监控结果检查间隔
+        function getCurrentMonitorResultsCheckInterval() {
+            const monitorIntervalElement = document.getElementById('monitorInterval');
+            const monitorInterval = parseInt(monitorIntervalElement.value) || 30;
+            
+            // 监控结果检查间隔与监控间隔保持一致
+            return monitorInterval;
         }
 
         function stopMonitorResultsCheck() {
@@ -1354,6 +1387,15 @@
                     loadVMs();
                 } else {
                     console.debug('没有新的监控结果');
+                }
+                
+                // 检查监控间隔是否发生变化，如果变化则重新设置定时器
+                const newInterval = getCurrentMonitorResultsCheckInterval();
+                
+                if (newInterval !== currentCheckInterval) {
+                    console.log(`检测到监控间隔变化，重新设置监控结果检查间隔: ${currentCheckInterval}秒 -> ${newInterval}秒`);
+                    console.debug(`间隔变化详情: 当前间隔=${currentCheckInterval}秒, 新间隔=${newInterval}秒`);
+                    updateMonitorResultsCheckInterval();
                 }
             } catch (error) {
                 console.error('检查监控结果失败:', error);
