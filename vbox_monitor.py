@@ -52,11 +52,11 @@ except ImportError:
     LOG_FILE = "vbox_monitor.log"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
-    VM_STATUS_TIMEOUT = 10
+    VM_STATUS_TIMEOUT = 15
     VM_START_TIMEOUT = 60
     VM_STOP_TIMEOUT = 30
-    SCAN_VMS_TIMEOUT = 10
-    VM_INFO_TIMEOUT = 10
+    SCAN_VMS_TIMEOUT = 30
+    VM_INFO_TIMEOUT = 15
     VERBOSE_LOGGING = True
     AUTO_START_STOPPED_VMS = True
     MONITOR_THREAD_DAEMON = True
@@ -144,7 +144,7 @@ class VirtualBoxMonitor:
                 try:
                     result = subprocess.run(
                         [self.vboxmanage_path, 'list', 'systemproperties'],
-                        capture_output=True, timeout=10
+                        capture_output=True, timeout=15
                     )
                     if result.returncode == 0:
                         try:
@@ -185,7 +185,7 @@ class VirtualBoxMonitor:
         # 首先尝试从PATH中查找
         try:
             result = subprocess.run(['VBoxManage', '--version'], 
-                                  capture_output=True, timeout=5)
+                                  capture_output=True, timeout=15)
             if result.returncode == 0:
                 logger.info("从PATH中找到VBoxManage")
                 return 'VBoxManage'
@@ -338,7 +338,7 @@ class VirtualBoxMonitor:
         try:
             result = subprocess.run(
                 [self.vboxmanage_path, 'showvminfo', vm_name, '--machinereadable'],
-                capture_output=True, timeout=10
+                capture_output=True, timeout=15
             )
             if result.returncode == 0:
                 try:
@@ -441,7 +441,7 @@ class VirtualBoxMonitor:
                 try:
                     running_result = subprocess.run(
                         [self.vboxmanage_path, 'list', 'runningvms'],
-                        capture_output=True, timeout=5
+                        capture_output=True, timeout=15
                     )
                     if running_result.returncode == 0:
                         try:
@@ -720,7 +720,15 @@ class VirtualBoxMonitor:
                 monitor_logger.info(f"发现已停止的虚拟机: {vm['name']} (状态: {vm['status']})")
                 
                 # 检查是否启用自动启动功能
-                if not AUTO_START_STOPPED_VMS:
+                try:
+                    from config import AUTO_START_STOPPED_VMS
+                    auto_start_enabled = AUTO_START_STOPPED_VMS
+                except ImportError:
+                    logger.warning("无法导入AUTO_START_STOPPED_VMS配置，使用默认值True")
+                    monitor_logger.warning("无法导入AUTO_START_STOPPED_VMS配置，使用默认值True")
+                    auto_start_enabled = True
+                
+                if not auto_start_enabled:
                     logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
                     monitor_logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
                     continue
@@ -893,7 +901,7 @@ class VirtualBoxMonitor:
         monitor_logger.info("自动监控状态: 已关闭")
         
         if self.monitor_thread:
-            self.monitor_thread.join(timeout=5)
+            self.monitor_thread.join(timeout=10)
             monitor_logger.debug("监控线程已停止")
     
     def get_vm_info(self, vm_name: str) -> Optional[Dict]:
@@ -909,7 +917,7 @@ class VirtualBoxMonitor:
         try:
             result = subprocess.run(
                 [self.vboxmanage_path, 'showvminfo', vm_name],
-                capture_output=True, timeout=10
+                capture_output=True, timeout=15
             )
             
             if result.returncode == 0:

@@ -4498,3 +4498,263 @@
 2025-08-03 19:22:24,703 - ERROR - monitor - 监控任务出错: name 'AUTO_START_STOPPED_VMS' is not defined
 2025-08-03 19:22:24,703 - DEBUG - monitor - 本次监控执行耗时: 1.38秒
 2025-08-03 19:22:24,703 - DEBUG - monitor - 自动监控等待 58.62 秒后执行下次检查
+2025-08-03 19:22:47,386 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:22:51,110 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:22:52,938 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:22:53,492 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:22:54,515 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:23:04,916 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:23:04,917 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:23:14,937 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:23:14,937 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:23:14.937397', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:23:14,937 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:23:14,937 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:23:14,937 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:23:23,324 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:23:23,324 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:23:33,339 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:23:33,339 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:23:33.339741', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:23:33,340 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:23:33,340 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:23:33,340 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:23:41,762 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:24:04,917 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:24:04,917 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:24:14,940 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:24:14,940 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:24:14.940705', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:24:14,941 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:24:14,941 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:24:14,941 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:24:23,325 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:24:23,325 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:24:33,354 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:24:33,354 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:24:33.354708', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:24:33,355 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:24:33,355 - DEBUG - monitor - 本次监控执行耗时: 10.03秒
+2025-08-03 19:24:33,355 - DEBUG - monitor - 自动监控等待 49.97 秒后执行下次检查
+2025-08-03 19:25:04,918 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:25:04,918 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:25:14,935 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:25:14,935 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:25:14.935182', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:25:14,935 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:25:14,935 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:25:14,935 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:25:23,326 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:25:23,326 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:25:33,342 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:25:33,342 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:25:33.342961', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:25:33,343 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:25:33,343 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:25:33,343 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:26:04,918 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:26:04,918 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:26:14,942 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:26:14,942 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:26:14.942540', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:26:14,942 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:26:14,942 - DEBUG - monitor - 本次监控执行耗时: 10.02秒
+2025-08-03 19:26:14,942 - DEBUG - monitor - 自动监控等待 49.98 秒后执行下次检查
+2025-08-03 19:26:23,326 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:26:23,326 - INFO - monitor - 自动监控状态: 正在执行，间隔: 60秒
+2025-08-03 19:26:30,319 - DEBUG - monitor - 当前虚拟机状态: 总数=0, 已停止=0
+2025-08-03 19:26:30,319 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:26:30.319301', 'total_vms': 0, 'running_vms': 0, 'stopped_vms': 0, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:26:30,319 - INFO - monitor - 所有虚拟机状态正常
+2025-08-03 19:26:30,319 - DEBUG - monitor - 本次监控执行耗时: 6.99秒
+2025-08-03 19:26:30,319 - DEBUG - monitor - 自动监控等待 53.01 秒后执行下次检查
+2025-08-03 19:28:01,727 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:28:01,740 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:28:01,740 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:28:01,740 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:28:11,029 - INFO - monitor - 自动监控已启动，间隔: 600秒，自动启动: True
+2025-08-03 19:28:11,029 - INFO - monitor - 自动监控启动时间: 2025-08-03T11:28:11.019Z
+2025-08-03 19:28:11,029 - INFO - monitor - 自动监控状态: 已开启，执行间隔: 600秒
+2025-08-03 19:28:11,030 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:28:11,030 - INFO - monitor - 自动监控状态: 正在执行，间隔: 600秒
+2025-08-03 19:28:11,879 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 19:28:11,879 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:28:11.879709', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:28:11,879 - INFO - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:28:11,879 - DEBUG - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 19:28:11,879 - DEBUG - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 19:28:11,879 - DEBUG - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 19:28:11,879 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:28:11,879 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:28:11,880 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:28:12,585 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:28:12,585 - INFO - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 19:28:12,585 - ERROR - monitor - 监控任务出错: name 'AUTO_START_STOPPED_VMS' is not defined
+2025-08-03 19:28:12,585 - DEBUG - monitor - 本次监控执行耗时: 1.56秒
+2025-08-03 19:28:12,585 - DEBUG - monitor - 自动监控等待 598.44 秒后执行下次检查
+2025-08-03 19:29:06,999 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:29:51,548 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:29:51,562 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:29:51,562 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:29:51,562 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:29:58,296 - INFO - monitor - 自动监控已启动，间隔: 600秒，自动启动: True
+2025-08-03 19:29:58,296 - INFO - monitor - 自动监控启动时间: 2025-08-03T11:29:58.289Z
+2025-08-03 19:29:58,297 - INFO - monitor - 自动监控状态: 已开启，执行间隔: 600秒
+2025-08-03 19:29:58,298 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:29:58,298 - INFO - monitor - 自动监控状态: 正在执行，间隔: 600秒
+2025-08-03 19:29:59,147 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 19:29:59,147 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:29:59.147395', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:29:59,148 - INFO - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:29:59,148 - DEBUG - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 19:29:59,149 - DEBUG - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 19:29:59,149 - DEBUG - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 19:29:59,149 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:29:59,149 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:29:59,149 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:29:59,890 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:29:59,890 - INFO - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 19:29:59,891 - ERROR - monitor - 监控任务出错: name 'AUTO_START_STOPPED_VMS' is not defined
+2025-08-03 19:29:59,891 - DEBUG - monitor - 本次监控执行耗时: 1.59秒
+2025-08-03 19:29:59,891 - DEBUG - monitor - 自动监控等待 598.41 秒后执行下次检查
+2025-08-03 19:30:01,068 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:02,363 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:02,593 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:02,729 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:02,922 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:03,093 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:03,222 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:03,343 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:03,457 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:30:03,610 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:35:53,322 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:36:09,928 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:36:31,273 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:36:31,297 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:36:31,297 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:36:31,297 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:37:37,167 - INFO - monitor - 自动监控已启动，间隔: 600秒，自动启动: True
+2025-08-03 19:37:37,167 - INFO - monitor - 自动监控启动时间: 2025-08-03T11:37:37.162Z
+2025-08-03 19:37:37,167 - INFO - monitor - 自动监控状态: 已开启，执行间隔: 600秒
+2025-08-03 19:37:37,168 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:37:37,168 - INFO - monitor - 自动监控状态: 正在执行，间隔: 600秒
+2025-08-03 19:37:38,648 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=2
+2025-08-03 19:37:38,648 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:37:38.648669', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 2, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:37:38,649 - INFO - monitor - 发现 2 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:37:38,649 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:37:38,649 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:37:39,805 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:37:39,805 - INFO - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:37:39,805 - ERROR - monitor - 监控任务出错: name 'AUTO_START_STOPPED_VMS' is not defined
+2025-08-03 19:37:39,805 - DEBUG - monitor - 本次监控执行耗时: 2.64秒
+2025-08-03 19:37:39,805 - DEBUG - monitor - 自动监控等待 597.36 秒后执行下次检查
+2025-08-03 19:44:26,129 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:44:26,679 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:44:28,695 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:45:50,082 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:45:50,610 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:45:53,271 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:45:53,791 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:47:37,173 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:47:37,173 - INFO - monitor - 自动监控状态: 正在执行，间隔: 600秒
+2025-08-03 19:47:38,517 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 19:47:38,517 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:47:38.517776', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:47:38,518 - INFO - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:47:38,518 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:47:38,518 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:47:38,518 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:47:38,864 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:47:40,375 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:47:40,375 - INFO - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:47:40,376 - ERROR - monitor - 监控任务出错: name 'AUTO_START_STOPPED_VMS' is not defined
+2025-08-03 19:47:40,376 - DEBUG - monitor - 本次监控执行耗时: 3.20秒
+2025-08-03 19:47:40,376 - DEBUG - monitor - 自动监控等待 596.80 秒后执行下次检查
+2025-08-03 19:48:14,513 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:48:14,542 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:48:14,543 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:48:14,543 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:49:26,679 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:49:26,696 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:49:26,696 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:49:26,696 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:49:36,748 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:49:36,766 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:49:36,766 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:49:36,766 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:49:51,387 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:49:51,405 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:49:51,405 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:49:51,405 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:50:33,461 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 19:50:33,474 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 19:50:33,474 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 19:50:33,474 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 19:50:42,402 - INFO - monitor - 自动监控已启动，间隔: 30秒，自动启动: True
+2025-08-03 19:50:42,402 - INFO - monitor - 自动监控启动时间: 2025-08-03T11:50:42.382Z
+2025-08-03 19:50:42,402 - INFO - monitor - 自动监控状态: 已开启，执行间隔: 30秒
+2025-08-03 19:50:42,405 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:50:42,405 - INFO - monitor - 自动监控状态: 正在执行，间隔: 30秒
+2025-08-03 19:50:43,330 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 19:50:43,330 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:50:43.330464', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:50:43,330 - INFO - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:50:43,330 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:50:43,330 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:50:43,330 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:50:44,131 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:50:44,131 - INFO - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:50:44,131 - DEBUG - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 19:50:47,346 - ERROR - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 19:50:47,346 - INFO - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:50:47,346 - DEBUG - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 19:50:50,401 - ERROR - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 19:50:50,402 - INFO - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:50:50,402 - DEBUG - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 19:50:53,544 - ERROR - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 19:50:53,544 - INFO - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 19:50:53,545 - INFO - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 19:50:53,545 - WARNING - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 19:50:53,545 - WARNING - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 19:50:53,545 - WARNING - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 19:50:53,545 - DEBUG - monitor - 本次监控执行耗时: 11.14秒
+2025-08-03 19:50:53,545 - DEBUG - monitor - 自动监控等待 18.86 秒后执行下次检查
+2025-08-03 19:51:06,413 - WARNING - monitor - 监控已在运行中
+2025-08-03 19:51:12,405 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:51:12,405 - INFO - monitor - 自动监控状态: 正在执行，间隔: 30秒
+2025-08-03 19:51:13,269 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 19:51:13,269 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:51:13.269527', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:51:13,269 - INFO - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:51:13,269 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:51:13,269 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:51:13,269 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:51:14,091 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:51:14,091 - INFO - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:51:14,091 - DEBUG - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 19:51:17,202 - ERROR - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 19:51:17,203 - INFO - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:51:17,203 - DEBUG - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 19:51:20,311 - ERROR - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 19:51:20,311 - INFO - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:51:20,311 - DEBUG - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 19:51:23,516 - ERROR - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 19:51:23,517 - INFO - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 19:51:23,517 - INFO - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 19:51:23,517 - WARNING - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 19:51:23,517 - WARNING - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 19:51:23,517 - WARNING - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 19:51:23,518 - DEBUG - monitor - 本次监控执行耗时: 11.11秒
+2025-08-03 19:51:23,518 - DEBUG - monitor - 自动监控等待 18.89 秒后执行下次检查
+2025-08-03 19:51:42,405 - INFO - monitor - 执行自动监控检查...
+2025-08-03 19:51:42,405 - INFO - monitor - 自动监控状态: 正在执行，间隔: 30秒
+2025-08-03 19:51:43,324 - DEBUG - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 19:51:43,324 - INFO - monitor - 状态监控结果: {'timestamp': '2025-08-03T19:51:43.324470', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 19:51:43,324 - INFO - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 19:51:43,324 - DEBUG - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:51:43,324 - DEBUG - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:51:43,324 - DEBUG - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:51:44,221 - INFO - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 19:51:44,221 - INFO - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 19:51:44,221 - DEBUG - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 19:51:47,556 - ERROR - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 19:51:47,556 - INFO - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 19:51:47,556 - DEBUG - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 19:51:50,732 - ERROR - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 19:51:50,733 - INFO - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 19:51:50,733 - DEBUG - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 19:51:54,148 - ERROR - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 19:51:54,149 - INFO - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 19:51:54,149 - INFO - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 19:51:54,149 - WARNING - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 19:51:54,149 - WARNING - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 19:51:54,149 - WARNING - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 19:51:54,150 - DEBUG - monitor - 本次监控执行耗时: 11.74秒
+2025-08-03 19:51:54,150 - DEBUG - monitor - 自动监控等待 18.26 秒后执行下次检查

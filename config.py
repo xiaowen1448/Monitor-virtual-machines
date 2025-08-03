@@ -64,7 +64,7 @@ ENABLE_COMMAND_DEBUG = True
 ENABLE_STATUS_DEBUG = True
 
 # 虚拟机状态检查超时时间（秒）
-VM_STATUS_TIMEOUT = 10
+VM_STATUS_TIMEOUT = 15
 
 # 虚拟机启动超时时间（秒）
 VM_START_TIMEOUT = 60
@@ -73,10 +73,10 @@ VM_START_TIMEOUT = 60
 VM_STOP_TIMEOUT = 30
 
 # 扫描虚拟机超时时间（秒）
-SCAN_VMS_TIMEOUT = 10
+SCAN_VMS_TIMEOUT = 30
 
 # 获取虚拟机信息超时时间（秒）
-VM_INFO_TIMEOUT = 10
+VM_INFO_TIMEOUT = 15
 
 # 是否在启动时自动扫描虚拟机
 AUTO_SCAN_ON_START = True
@@ -208,16 +208,19 @@ MONITOR_STATUS_INDICATOR_COLORS = {
 AUTO_REFRESH_BUTTON_ENABLED = True
 
 # 自动刷新下拉时间数值（对应页面上的时间选择器）
-AUTO_REFRESH_INTERVAL_VALUE = 60
+AUTO_REFRESH_INTERVAL_VALUE = 600
 
 # 自动监控按钮开启状态（对应页面上的自动监控开关）
 AUTO_MONITOR_BUTTON_ENABLED = True
 
 # 自动监控下拉时间数值（对应页面上的监控时间选择器）
-AUTO_MONITOR_INTERVAL_VALUE = 60
+AUTO_MONITOR_INTERVAL_VALUE = 30
 
 # 自启动虚拟机按钮开启状态（对应页面上的自启动开关）
 AUTO_START_VM_BUTTON_ENABLED = True
+
+# 是否启用自动启动已停止的虚拟机功能
+AUTO_START_STOPPED_VMS = True
 
 
 

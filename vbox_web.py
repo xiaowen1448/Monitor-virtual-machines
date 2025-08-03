@@ -260,14 +260,16 @@ def start_auto_refresh(interval):
     auto_refresh_interval = interval
     
     def auto_refresh_task():
-        logger.info(f"自动刷新任务已启动，间隔: {interval}秒")
-        logger.info(f"自动刷新状态: 已开启，执行间隔: {interval}秒")
+        # 确保interval变量在函数开始时就被正确初始化
+        current_interval = interval
+        logger.info(f"自动刷新任务已启动，间隔: {current_interval}秒")
+        logger.info(f"自动刷新状态: 已开启，执行间隔: {current_interval}秒")
         
         while auto_refresh_enabled:
             try:
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 logger.info(f"[{current_time}] 执行自动刷新...")
-                logger.info(f"自动刷新状态: 正在执行，间隔: {interval}秒")
+                logger.info(f"自动刷新状态: 正在执行，间隔: {current_interval}秒")
                 
                 # 执行实际的刷新操作
                 if monitor:
@@ -285,14 +287,74 @@ def start_auto_refresh(interval):
                 else:
                     logger.warning("监控器未初始化，跳过自动刷新")
                 
-                time.sleep(interval)
+                # 使用配置文件中最新的间隔时间
+                try:
+                    # 强制重新加载配置模块以获取最新值
+                    import importlib
+                    import sys
+                    
+                    if 'config' in sys.modules:
+                        importlib.reload(sys.modules['config'])
+                    
+                    from config import AUTO_REFRESH_INTERVAL_VALUE, AUTO_REFRESH_BUTTON_ENABLED
+                    current_interval = AUTO_REFRESH_INTERVAL_VALUE
+                    current_enabled = AUTO_REFRESH_BUTTON_ENABLED
+                    
+                    # 检查是否被禁用
+                    if not current_enabled:
+                        logger.info("检测到自动刷新已被禁用，停止自动刷新任务")
+                        break
+                    
+                    # 如果间隔时间发生变化，更新全局变量和当前线程的间隔
+                    global auto_refresh_interval
+                    if current_interval != auto_refresh_interval:
+                        logger.info(f"检测到自动刷新间隔变化: {auto_refresh_interval}秒 -> {current_interval}秒")
+                        auto_refresh_interval = current_interval
+                        current_interval = current_interval  # 更新当前线程的间隔
+                    
+                    time.sleep(current_interval)
+                except Exception as e:
+                    logger.error(f"获取最新配置失败，使用当前间隔: {e}")
+                    time.sleep(current_interval)
             except Exception as e:
                 logger.error(f"自动刷新任务出错: {e}")
-                time.sleep(interval)
+                time.sleep(current_interval)
     
     auto_refresh_thread = threading.Thread(target=auto_refresh_task, daemon=True)
     auto_refresh_thread.start()
     logger.info("自动刷新线程已启动")
+
+def reload_auto_refresh_config():
+    """重新加载自动刷新配置"""
+    global auto_refresh_enabled, auto_refresh_interval
+    
+    try:
+        # 强制重新加载配置模块以避免缓存问题
+        import importlib
+        import sys
+        
+        if 'config' in sys.modules:
+            importlib.reload(sys.modules['config'])
+            logger.info("已重新加载config模块")
+        
+        from config import AUTO_REFRESH_BUTTON_ENABLED, AUTO_REFRESH_INTERVAL_VALUE
+        
+        logger.info(f"重新加载自动刷新配置: 启用={AUTO_REFRESH_BUTTON_ENABLED}, 间隔={AUTO_REFRESH_INTERVAL_VALUE}秒")
+        
+        # 更新全局变量
+        auto_refresh_enabled = AUTO_REFRESH_BUTTON_ENABLED
+        auto_refresh_interval = AUTO_REFRESH_INTERVAL_VALUE
+        
+        # 根据配置状态启动或停止自动刷新
+        if auto_refresh_enabled:
+            logger.info(f"自动刷新已启用，重新启动自动刷新，间隔: {auto_refresh_interval}秒")
+            start_auto_refresh(auto_refresh_interval)
+        else:
+            logger.info("自动刷新已禁用，停止自动刷新")
+            stop_auto_refresh()
+            
+    except Exception as e:
+        logger.error(f"重新加载自动刷新配置失败: {e}")
 
 def stop_auto_refresh():
     """停止自动刷新"""
@@ -1277,6 +1339,29 @@ def api_get_auto_refresh_status():
         return jsonify({
             'success': False,
             'message': f'获取自动刷新状态失败: {str(e)}'
+        })
+
+@app.route('/api/config/auto_refresh/reload', methods=['POST'])
+@login_required
+def api_reload_auto_refresh_config():
+    """重新加载自动刷新配置"""
+    logger.debug("API调用: /api/config/auto_refresh/reload - 重新加载自动刷新配置")
+    try:
+        reload_auto_refresh_config()
+        return jsonify({
+            'success': True,
+            'message': '自动刷新配置重新加载成功',
+            'data': {
+                'enabled': auto_refresh_enabled,
+                'interval': auto_refresh_interval
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"重新加载自动刷新配置失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'重新加载自动刷新配置失败: {str(e)}'
         })
 
 @app.route('/api/config/web_server')
