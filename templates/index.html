@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VirtualBox虚拟机监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            font-size: 0.8em;
+        }
+        .vm-card {
+            transition: all 0.3s ease;
+        }
+        .vm-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .monitoring-active {
+            background-color: #d4edda !important;
+            border-color: #c3e6cb !important;
+        }
+        .monitoring-inactive {
+            background-color: #f8d7da !important;
+            border-color: #f5c6cb !important;
+        }
+        .refresh-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .auto-refresh {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+        }
+        
+        /* 虚拟机列表容器样式 */
+        .vm-list-container {
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem;
+        }
+        
+        /* 虚拟机列表滚动条样式 */
+        .vm-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .vm-list-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .vm-list-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        .vm-list-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* 确保页面整体高度固定 */
+        .container-fluid {
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* 头部区域固定高度 */
+        .bg-primary {
+            flex-shrink: 0;
+        }
+        
+        /* 控制面板区域固定高度 */
+        .row.mt-3:first-of-type {
+            flex-shrink: 0;
+        }
+        
+        /* 虚拟机列表卡片区域 */
+        .vm-list-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .vm-list-card .card-body {
+            flex: 1;
+            overflow: hidden;
+            padding: 0;
+        }
+        
+        /* 确保虚拟机卡片在滚动容器中正常显示 */
+        .vm-list-container .row {
+            margin: 0;
+        }
+        
+        .vm-list-container .col-md-6,
+        .vm-list-container .col-lg-4 {
+            padding: 0.5rem;
+        }
+        
+        /* 启动失败虚拟机样式 */
+        .vm-card.border-danger {
+            border-width: 2px !important;
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+        }
+        
+        .vm-card.border-danger .card-header {
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        
+        .vm-card.border-danger:hover {
+            box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
+        }
+        
+        /* 启动失败图标动画 */
+        .fa-times-circle {
+            animation: pulse-red 2s infinite;
+        }
+        
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* 异常状态虚拟机样式 */
+        .vm-card.border-warning {
+            border-width: 2px !important;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+        }
+        
+        .vm-card.border-warning .card-header {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+        
+        .vm-card.border-warning:hover {
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+        }
+        
+        /* 异常状态图标动画 */
+        .fa-exclamation-triangle {
+            animation: pulse-warning 2s infinite;
+        }
+        
+        @keyframes pulse-warning {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* 小尺寸警告框 */
+        .alert-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* 日志终端样式 */
+        .log-line {
+            margin: 0;
+            padding: 1px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-line.debug {
+            color: #6c757d;
+        }
+
+        .log-line.info {
+            color: #17a2b8;
+        }
+
+        .log-line.warning {
+            color: #ffc107;
+        }
+
+        .log-line.error {
+            color: #dc3545;
+        }
+
+        .log-line.critical {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        #logsTerminal {
+            background-color: #1e1e1e !important;
+            border: none;
+            outline: none;
+        }
+
+        #logsTerminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #logsTerminal::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        #logsTerminal::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        #logsTerminal::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid d-flex flex-column">
+        <!-- 头部 -->
+        <div class="row bg-primary text-white p-3 flex-shrink-0">
+            <div class="col">
+                <h3><i class="fas fa-server me-2"></i>VirtualBox虚拟机监控系统</h3>
+                <p class="mb-0">实时监控和管理VirtualBox虚拟机</p>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="row mt-3 flex-shrink-0">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>监控控制</h5>
+                        <div>
+                            <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-sync-alt me-1"></i>刷新
+                            </button>
+                            <button id="scanBtn" class="btn btn-outline-info btn-sm ms-2">
+                                <i class="fas fa-search me-1"></i>扫描
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="form-check form-switch me-3">
+                                        <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                                        <label class="form-check-label" for="autoRefreshToggle">
+                                            自动刷新
+                                        </label>
+                                    </div>
+                                    <select id="autoRefreshInterval" class="form-select form-select-sm" style="width: 120px;">
+                                        <option value="30" selected>30秒</option>
+                                        <option value="60">1分钟</option>
+                                        <option value="300">5分钟</option>
+                                        <option value="600">10分钟</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="form-check form-switch me-3">
+                                        <input class="form-check-input" type="checkbox" id="monitoringToggle">
+                                        <label class="form-check-label" for="monitoringToggle">
+                                            自动监控
+                                        </label>
+                                    </div>
+                                    <select id="monitorInterval" class="form-select form-select-sm" style="width: 120px;">
+                                        <option value="30" selected>30秒</option>
+                                        <option value="60">1分钟</option>
+                                        <option value="300">5分钟</option>
+                                        <option value="600">10分钟</option>
+                                    </select>
+                                </div>
+
+                                <div class="d-flex align-items-center mt-2">
+                                    <div class="form-check form-switch me-3">
+                                        <input class="form-check-input" type="checkbox" id="autoStartToggle" checked>
+                                        <label class="form-check-label" for="autoStartToggle">
+                                            自动启动未运行的虚拟机
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info mb-0">
+                                    <small>
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <strong>监控状态:</strong> <span id="monitorStatus">未启动</span><br>
+                                        <strong>监控模式:</strong> <span id="monitorMode">-</span><br>
+                                        <strong>虚拟机数量:</strong> <span id="vmCount">0</span><br>
+                                        <strong>最后更新:</strong> <span id="lastUpdate">-</span><br>
+                                        <strong>选中目录:</strong> <span id="selectedDirectories">-</span>
+                                    </small>
+                                </div>
+                                <div class="mt-2">
+                                    <button id="viewLogsBtn" class="btn btn-outline-info btn-sm">
+                                        <i class="fas fa-terminal me-1"></i>查看日志
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>快速操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <button id="autoStartBtn" class="btn btn-success w-100 mb-2">
+                            <i class="fas fa-play me-1"></i>启动所有已停止的虚拟机
+                        </button>
+                        <button id="startAllBtn" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-power-off me-1"></i>启动所有虚拟机
+                        </button>
+                        <button id="stopAllBtn" class="btn btn-warning w-100 mb-2">
+                            <i class="fas fa-stop me-1"></i>停止所有虚拟机
+                        </button>
+                        <button id="clearFailuresBtn" class="btn btn-outline-danger w-100 mb-2">
+                            <i class="fas fa-times-circle me-1"></i>清除失败标记
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 虚拟机列表 -->
+        <div class="row mt-3 flex-grow-1">
+            <div class="col-12">
+                <div class="card vm-list-card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>虚拟机列表</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="vm-list-container">
+                            <div id="vmList" class="row">
+                                <!-- 虚拟机卡片将在这里动态生成 -->
+                            </div>
+                            <div id="noVmsMessage" class="text-center text-muted py-5" style="display: none;">
+                                <i class="fas fa-server fa-3x mb-3"></i>
+                                <h5>未发现虚拟机</h5>
+                                <p>请检查VirtualBox是否正确安装，或点击"扫描"按钮重新扫描</p>
+                            </div>
+                            <div id="loadingMessage" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                                <p class="mt-2">正在加载虚拟机信息...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 虚拟机详情模态框 -->
+        <div class="modal fade" id="vmDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">虚拟机详情</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="vmDetailContent">
+                            <!-- 虚拟机详细信息将在这里显示 -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- 日志查看模态框 -->
+    <div class="modal fade" id="logsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-terminal me-2"></i>监控日志查看器
+                    </h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyLogs()" title="复制日志">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLogs()" title="清空日志">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="logsTerminal" class="bg-dark text-light p-3" style="height: 500px; font-family: 'Courier New', monospace; font-size: 12px; overflow-y: auto;">
+                        <div class="text-success">=== 监控日志查看器已启动 ===</div>
+                        <div class="text-info">正在连接日志流...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let autoRefreshInterval = null;
+        let monitoringInterval = null;
+        let vmList = [];
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，开始初始化...');
+            loadVMs();
+            loadMonitorStatus();
+            loadVboxDirConfig();
+            loadAutoMonitorConfig();
+            loadWebRefreshConfig();
+            setupEventListeners();
+        });
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 刷新按钮
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                this.querySelector('i').classList.add('refresh-spinner');
+                loadVMs().finally(() => {
+                    this.querySelector('i').classList.remove('refresh-spinner');
+                });
+            });
+
+            // 扫描按钮
+            document.getElementById('scanBtn').addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>扫描中...';
+                
+                fetch('/api/scan')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert('success', `扫描完成，发现 ${data.data.length} 个虚拟机`);
+                            loadVMs();
+                        } else {
+                            showAlert('danger', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        showAlert('danger', '扫描失败: ' + error.message);
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-search me-1"></i>扫描';
+                    });
+            });
+
+            // 自动刷新开关
+            document.getElementById('autoRefreshToggle').addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+
+            // 自动刷新间隔变化
+            document.getElementById('autoRefreshInterval').addEventListener('change', function() {
+                const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+                if (autoRefreshToggle.checked) {
+                    // 如果自动刷新正在运行，重新启动以应用新间隔
+                    startAutoRefresh();
+                } else {
+                    // 即使没有启用，也保存配置
+                    saveWebRefreshConfig();
+                }
+            });
+
+            // 监控开关
+            document.getElementById('monitoringToggle').addEventListener('change', function() {
+                const interval = document.getElementById('monitorInterval').value;
+                const autoStart = document.getElementById('autoStartToggle').checked;
+                if (this.checked) {
+                    startMonitoring(interval, autoStart);
+                } else {
+                    stopMonitoring();
+                }
+                // 保存配置
+                saveAutoMonitorConfig();
+            });
+
+            // 监控间隔变化
+            document.getElementById('monitorInterval').addEventListener('change', function() {
+                const monitoringToggle = document.getElementById('monitoringToggle');
+                if (monitoringToggle.checked) {
+                    // 如果监控正在运行，重新启动监控以应用新设置
+                    const interval = this.value;
+                    const autoStart = document.getElementById('autoStartToggle').checked;
+                    startMonitoring(interval, autoStart);
+                }
+                // 保存配置
+                saveAutoMonitorConfig();
+            });
+
+            // 自动启动开关
+            document.getElementById('autoStartToggle').addEventListener('change', function() {
+                const monitoringToggle = document.getElementById('monitoringToggle');
+                if (monitoringToggle.checked) {
+                    // 如果监控正在运行，重新启动监控以应用新设置
+                    const interval = document.getElementById('monitorInterval').value;
+                    const autoStart = this.checked;
+                    startMonitoring(interval, autoStart);
+                }
+                // 保存配置
+                saveAutoMonitorConfig();
+            });
+
+            // 日志查看按钮
+            document.getElementById('viewLogsBtn').addEventListener('click', function() {
+                showLogsModal();
+            });
+
+            // 快速操作按钮
+            document.getElementById('autoStartBtn').addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>执行中...';
+                
+                fetch('/api/auto_start')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert('success', data.message);
+                            loadVMs();
+                        } else {
+                            showAlert('danger', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        showAlert('danger', '自动启动失败: ' + error.message);
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-play me-1"></i>启动所有已停止的虚拟机';
+                    });
+            });
+
+            document.getElementById('startAllBtn').addEventListener('click', function() {
+                if (confirm('确定要启动所有虚拟机吗？')) {
+                    startAllVMs();
+                }
+            });
+
+            document.getElementById('stopAllBtn').addEventListener('click', function() {
+                if (confirm('确定要停止所有虚拟机吗？')) {
+                    stopAllVMs();
+                }
+            });
+
+            document.getElementById('clearFailuresBtn').addEventListener('click', function() {
+                if (confirm('确定要清除所有启动失败标记吗？')) {
+                    clearAllStartFailures();
+                }
+            });
+
+
+        }
+
+        // 加载虚拟机列表
+        async function loadVMs() {
+            console.log('开始加载虚拟机列表...');
+            try {
+                console.log('发送请求到 /api/vms');
+                const response = await fetch('/api/vms');
+                console.log('收到响应:', response.status, response.statusText);
+                
+                const data = await response.json();
+                console.log('解析响应数据:', data);
+                
+                if (data.success) {
+                    vmList = data.data;
+                    console.log(`获取到 ${vmList.length} 个虚拟机:`, vmList);
+                    
+                    // 添加启动失败标记
+                    addStartFailureMarkers(vmList);
+                    
+                    displayVMs(vmList);
+                    updateLastUpdate(data.timestamp);
+                    updateVMCount(vmList.length);
+                } else {
+                    console.error('API返回错误:', data.message);
+                    showAlert('danger', data.message);
+                    displayVMs([]);
+                }
+            } catch (error) {
+                console.error('加载虚拟机列表失败:', error);
+                showAlert('danger', '加载虚拟机列表失败: ' + error.message);
+                displayVMs([]);
+            }
+        }
+
+        // 显示虚拟机列表
+        function displayVMs(vms) {
+            const vmListContainer = document.getElementById('vmList');
+            const noVmsMessage = document.getElementById('noVmsMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            // 隐藏加载消息
+            loadingMessage.style.display = 'none';
+
+            if (vms.length === 0) {
+                vmListContainer.innerHTML = '';
+                noVmsMessage.style.display = 'block';
+                return;
+            }
+
+            noVmsMessage.style.display = 'none';
+            
+            vmListContainer.innerHTML = vms.map(vm => createVMCard(vm)).join('');
+        }
+
+        // 创建虚拟机卡片
+        function createVMCard(vm) {
+            console.log(`创建虚拟机卡片: ${vm.name}, 状态: ${vm.status}`);
+            const statusClass = getStatusClass(vm.status);
+            const statusText = getStatusText(vm.status);
+            const statusIcon = getStatusIcon(vm.status);
+            
+            // 检查是否有启动失败标记
+            const hasStartFailure = vm.start_failure || false;
+            const failureClass = hasStartFailure ? 'border-danger' : '';
+            const failureIcon = hasStartFailure ? '<i class="fas fa-times-circle text-danger me-1" title="启动失败"></i>' : '';
+            
+            // 检查是否有异常状态
+            const hasException = vm.exception || false;
+            const exceptionClass = hasException ? 'border-warning' : '';
+            const exceptionIcon = hasException ? '<i class="fas fa-exclamation-triangle text-warning me-1" title="虚拟机操作异常"></i>' : '';
+            
+            return `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card vm-card h-100 ${failureClass} ${exceptionClass}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-truncate" title="${vm.name}">
+                                ${failureIcon}${exceptionIcon}<i class="fas fa-server me-1"></i>${vm.name}
+                            </h6>
+                            <span class="badge ${statusClass} status-badge">
+                                ${statusIcon} ${statusText}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-8">
+                                    <small class="text-muted">
+                                        <i class="fas fa-fingerprint me-1"></i>UUID: ${vm.uuid.substring(0, 8)}...
+                                    </small><br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>最后检查: ${formatTime(vm.last_check)}
+                                    </small>
+                                    ${hasStartFailure ? `<br><small class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>启动失败 (${vm.failure_count || 1}次)</small>` : ''}
+                                    ${hasException ? `<br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>操作异常 (${vm.exception_count || 1}次)</small>` : ''}
+                                </div>
+                                <div class="col-4 text-end">
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        ${vm.status === 'poweroff' || vm.status === 'aborted' ? 
+                                            `<button class="btn btn-success btn-sm" onclick="startVM('${vm.name}')" title="启动">
+                                                <i class="fas fa-play"></i>
+                                            </button>` : 
+                                            `<button class="btn btn-warning btn-sm" onclick="stopVM('${vm.name}')" title="停止">
+                                                <i class="fas fa-stop"></i>
+                                            </button>`
+                                        }
+                                        <button class="btn btn-info btn-sm" onclick="showVMDetail('${vm.name}')" title="详情">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                        ${hasException ? `
+                                        <button class="btn btn-outline-warning btn-sm" onclick="clearVMException('${vm.name}')" title="清除操作异常标记">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 获取状态样式类
+        function getStatusClass(status) {
+            console.log(`获取状态样式类，原始状态: ${status}`);
+            switch (status) {
+                case 'running': return 'bg-success';
+                case 'poweroff': return 'bg-secondary';
+                case 'paused': return 'bg-warning';
+                case 'saved': return 'bg-info';
+                case 'aborted': return 'bg-danger';
+                case 'unknown': return 'bg-dark';
+                default: 
+                    console.warn(`未知状态值: ${status}`);
+                    return 'bg-dark';
+            }
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            console.log(`获取状态文本，原始状态: ${status}`);
+            switch (status) {
+                case 'running': return '运行中';
+                case 'poweroff': return '已关闭';
+                case 'paused': return '已暂停';
+                case 'saved': return '已保存';
+                case 'aborted': return '异常终止';
+                case 'unknown': return '未知状态';
+                default: 
+                    console.warn(`未知状态值: ${status}`);
+                    return '未知状态';
+            }
+        }
+
+        // 获取状态图标
+        function getStatusIcon(status) {
+            console.log(`获取状态图标，原始状态: ${status}`);
+            switch (status) {
+                case 'running': return '<i class="fas fa-play"></i>';
+                case 'poweroff': return '<i class="fas fa-stop"></i>';
+                case 'paused': return '<i class="fas fa-pause"></i>';
+                case 'saved': return '<i class="fas fa-save"></i>';
+                case 'aborted': return '<i class="fas fa-exclamation-triangle"></i>';
+                case 'unknown': return '<i class="fas fa-question"></i>';
+                default: 
+                    console.warn(`未知状态值: ${status}`);
+                    return '<i class="fas fa-question"></i>';
+            }
+        }
+
+        // 格式化时间
+        function formatTime(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // 启动虚拟机
+        async function startVM(vmName) {
+            console.log(`开始启动虚拟机: ${vmName}`);
+            try {
+                const url = `/api/vm/${encodeURIComponent(vmName)}/start`;
+                console.log('发送请求到:', url);
+                const response = await fetch(url);
+                console.log('收到响应:', response.status, response.statusText);
+                
+                const data = await response.json();
+                console.log('解析响应数据:', data);
+                
+                if (data.success) {
+                    console.log(`虚拟机 ${vmName} 启动成功`);
+                    showAlert('success', data.message);
+                    // 清除启动失败标记
+                    clearStartFailure(vmName);
+                    // 清除后端失败标记
+                    clearBackendStartFailure(vmName);
+                    // 清除异常状态
+                    await clearVMExceptionBackend(vmName);
+                    loadVMs();
+                } else {
+                    console.error(`虚拟机 ${vmName} 启动失败:`, data.message);
+                    showAlert('danger', data.message);
+                    // 标记启动失败
+                    markStartFailure(vmName);
+                    loadVMs();
+                }
+            } catch (error) {
+                console.error(`启动虚拟机 ${vmName} 失败:`, error);
+                showAlert('danger', '启动虚拟机失败: ' + error.message);
+                // 标记启动失败
+                markStartFailure(vmName);
+                loadVMs();
+            }
+        }
+
+        // 停止虚拟机
+        async function stopVM(vmName) {
+            if (!confirm(`确定要停止虚拟机 "${vmName}" 吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/stop`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // 清除异常状态
+                    await clearVMExceptionBackend(vmName);
+                    loadVMs();
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                showAlert('danger', '停止虚拟机失败: ' + error.message);
+            }
+        }
+
+
+
+
+
+
+
+
+
+        // 显示虚拟机详情
+        async function showVMDetail(vmName) {
+            try {
+                const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/info`);
+                const data = await response.json();
+                
+                const modal = new bootstrap.Modal(document.getElementById('vmDetailModal'));
+                const content = document.getElementById('vmDetailContent');
+                
+                if (data.success) {
+                    content.innerHTML = createVMDetailHTML(vmName, data.data);
+                } else {
+                    content.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+                
+                modal.show();
+            } catch (error) {
+                showAlert('danger', '获取虚拟机详情失败: ' + error.message);
+            }
+        }
+
+        // 创建虚拟机详情HTML
+        function createVMDetailHTML(vmName, info) {
+            let html = `<h6>虚拟机: ${vmName}</h6><hr>`;
+            
+            for (const [key, value] of Object.entries(info)) {
+                html += `<div class="row mb-2">
+                    <div class="col-4"><strong>${key}:</strong></div>
+                    <div class="col-8">${value}</div>
+                </div>`;
+            }
+            
+            return html;
+        }
+
+        // 启动所有虚拟机
+        async function startAllVMs() {
+            const stoppedVMs = vmList.filter(vm => vm.status === 'poweroff' || vm.status === 'aborted');
+            
+            if (stoppedVMs.length === 0) {
+                showAlert('info', '没有需要启动的虚拟机');
+                return;
+            }
+
+            let successCount = 0;
+            for (const vm of stoppedVMs) {
+                try {
+                    const response = await fetch(`/api/vm/${encodeURIComponent(vm.name)}/start`);
+                    const data = await response.json();
+                    if (data.success) {
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`启动虚拟机 ${vm.name} 失败:`, error);
+                }
+            }
+
+            showAlert('success', `批量启动完成，成功启动 ${successCount}/${stoppedVMs.length} 个虚拟机`);
+            loadVMs();
+        }
+
+        // 停止所有虚拟机
+        async function stopAllVMs() {
+            const runningVMs = vmList.filter(vm => vm.status === 'running');
+            
+            if (runningVMs.length === 0) {
+                showAlert('info', '没有正在运行的虚拟机');
+                return;
+            }
+
+            let successCount = 0;
+            for (const vm of runningVMs) {
+                try {
+                    const response = await fetch(`/api/vm/${encodeURIComponent(vm.name)}/stop`);
+                    const data = await response.json();
+                    if (data.success) {
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`停止虚拟机 ${vm.name} 失败:`, error);
+                }
+            }
+
+            showAlert('success', `批量停止完成，成功停止 ${successCount}/${runningVMs.length} 个虚拟机`);
+            loadVMs();
+        }
+
+        // 自动刷新控制
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            const interval = document.getElementById('autoRefreshInterval').value * 1000; // 转换为毫秒
+            autoRefreshInterval = setInterval(loadVMs, interval);
+            console.log(`自动刷新已启动，间隔: ${interval/1000}秒`);
+            
+            // 保存Web自动刷新配置
+            saveWebRefreshConfig();
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            console.log('自动刷新已停止');
+            
+            // 保存Web自动刷新配置
+            saveWebRefreshConfig();
+        }
+
+        // 保存Web自动刷新配置
+        async function saveWebRefreshConfig() {
+            try {
+                const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+                const autoRefreshInterval = document.getElementById('autoRefreshInterval');
+                
+                const enabled = autoRefreshToggle.checked;
+                const interval = parseInt(autoRefreshInterval.value);
+                
+                console.log('保存Web自动刷新配置:', { enabled, interval });
+                
+                const response = await fetch('/api/config/web_refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enabled: enabled,
+                        interval: interval
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Web自动刷新配置保存成功');
+                    showAlert('success', data.message);
+                } else {
+                    console.error('保存Web自动刷新配置失败:', data.message);
+                    showAlert('danger', '保存Web自动刷新配置失败: ' + data.message);
+                }
+            } catch (error) {
+                console.error('保存Web自动刷新配置失败:', error);
+                showAlert('danger', '保存Web自动刷新配置失败: ' + error.message);
+            }
+        }
+
+        // 监控结果检查
+        let monitorResultsInterval = null;
+
+        function startMonitorResultsCheck() {
+            if (monitorResultsInterval) {
+                clearInterval(monitorResultsInterval);
+            }
+            monitorResultsInterval = setInterval(checkMonitorResults, 10000); // 10秒检查一次
+            console.log('监控结果检查已启动');
+        }
+
+        function stopMonitorResultsCheck() {
+            if (monitorResultsInterval) {
+                clearInterval(monitorResultsInterval);
+                monitorResultsInterval = null;
+            }
+            console.log('监控结果检查已停止');
+        }
+
+        async function checkMonitorResults() {
+            try {
+                console.debug('开始检查监控结果...');
+                const response = await fetch('/api/monitor/last_results');
+                const data = await response.json();
+                
+                console.debug('监控结果响应:', data);
+                
+                if (data.success) {
+                    const results = data.data.last_results;
+                    const monitoring = data.data.monitoring;
+                    const auto_start_enabled = data.data.auto_start_enabled;
+                    
+                    if (results && results.length > 0) {
+                        const successCount = results.filter(r => r.success).length;
+                        const totalCount = results.length;
+                        
+                        console.log(`监控结果: 总数=${totalCount}, 成功=${successCount}`);
+                        console.debug('详细结果:', results);
+                        
+                        if (successCount > 0) {
+                            console.log(`自动监控执行完成：成功启动 ${successCount}/${totalCount} 个虚拟机`);
+                            showAlert('success', `自动监控执行完成：成功启动 ${successCount}/${totalCount} 个虚拟机`);
+                        } else if (totalCount > 0) {
+                            console.warn(`自动监控执行完成：尝试启动 ${totalCount} 个虚拟机，但都失败了`);
+                            showAlert('warning', `自动监控执行完成：尝试启动 ${totalCount} 个虚拟机，但都失败了`);
+                        }
+                    } else if (monitoring) {
+                        // 状态监控模式
+                        console.log('状态监控模式：仅监控虚拟机状态，不执行自动启动');
+                        console.debug('监控状态:', { monitoring, auto_start_enabled });
+                    }
+                    
+                    // 重新加载虚拟机列表以更新状态
+                    console.debug('重新加载虚拟机列表...');
+                    loadVMs();
+                } else {
+                    console.debug('没有新的监控结果');
+                }
+            } catch (error) {
+                console.error('检查监控结果失败:', error);
+                console.debug('错误详情:', error);
+            }
+        }
+
+        // 监控控制
+        async function startMonitoring(interval, autoStart = true) {
+            try {
+                console.log(`启动监控: 间隔=${interval}秒, 自动启动=${autoStart}`);
+                console.debug('监控启动参数:', { interval, autoStart });
+                
+                // 确保参数类型正确
+                interval = parseInt(interval);
+                autoStart = Boolean(autoStart);
+                
+                // 记录启动时间戳
+                const startTime = new Date().toISOString();
+                console.debug('监控启动时间:', startTime);
+                
+                console.debug('参数验证后:', { interval, autoStart, startTime });
+                
+                const url = `/api/monitor/start?interval=${interval}&auto_start=${autoStart}&start_time=${encodeURIComponent(startTime)}`;
+                console.debug('请求URL:', url);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                console.debug('监控启动响应:', data);
+                
+                if (data.success) {
+                    console.log('监控启动成功');
+                    console.debug('监控状态更新');
+                    
+                    const startTimeText = data.start_time ? `，启动时间: ${new Date(data.start_time).toLocaleString()}` : '';
+                    const modeText = autoStart ? '自动启动模式' : '状态监控模式';
+                    
+                    showAlert('success', `监控已启动，间隔${interval}秒，${modeText}${startTimeText}`);
+                    document.getElementById('monitorStatus').textContent = '运行中';
+                    document.getElementById('monitorMode').textContent = modeText;
+                    document.getElementById('monitorStatus').parentElement.parentElement.classList.add('monitoring-active');
+                    document.getElementById('monitorStatus').parentElement.parentElement.classList.remove('monitoring-inactive');
+                    
+                    // 启动监控结果检查
+                    console.debug('启动监控结果检查');
+                    startMonitorResultsCheck();
+                } else {
+                    console.error('监控启动失败:', data.message);
+                    showAlert('danger', data.message);
+                    document.getElementById('monitoringToggle').checked = false;
+                }
+            } catch (error) {
+                console.error('启动监控失败:', error);
+                console.debug('错误详情:', error);
+                showAlert('danger', '启动监控失败: ' + error.message);
+                document.getElementById('monitoringToggle').checked = false;
+            }
+        }
+
+        async function stopMonitoring() {
+            try {
+                console.log('停止监控...');
+                console.debug('发送停止监控请求');
+                
+                const response = await fetch('/api/monitor/stop');
+                const data = await response.json();
+                
+                console.debug('停止监控响应:', data);
+                
+                if (data.success) {
+                    console.log('监控停止成功');
+                    console.debug('更新监控状态显示');
+                    showAlert('success', data.message);
+                    document.getElementById('monitorStatus').textContent = '已停止';
+                    document.getElementById('monitorMode').textContent = '-';
+                    document.getElementById('monitorStatus').parentElement.parentElement.classList.remove('monitoring-active');
+                    document.getElementById('monitorStatus').parentElement.parentElement.classList.add('monitoring-inactive');
+                    
+                    // 停止监控结果检查
+                    console.debug('停止监控结果检查');
+                    stopMonitorResultsCheck();
+                } else {
+                    console.error('停止监控失败:', data.message);
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                console.error('停止监控失败:', error);
+                console.debug('错误详情:', error);
+                showAlert('danger', '停止监控失败: ' + error.message);
+            }
+        }
+
+        // 加载监控状态
+        async function loadMonitorStatus() {
+            try {
+                const response = await fetch('/api/monitor/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.data.monitoring ? '运行中' : '已停止';
+                    document.getElementById('monitorStatus').textContent = status;
+                    
+                    const statusElement = document.getElementById('monitorStatus').parentElement.parentElement;
+                    if (data.data.monitoring) {
+                        statusElement.classList.add('monitoring-active');
+                        statusElement.classList.remove('monitoring-inactive');
+                        document.getElementById('monitoringToggle').checked = true;
+                    } else {
+                        statusElement.classList.remove('monitoring-active');
+                        statusElement.classList.add('monitoring-inactive');
+                        document.getElementById('monitoringToggle').checked = false;
+                    }
+                }
+            } catch (error) {
+                console.error('加载监控状态失败:', error);
+            }
+        }
+
+        // 更新最后更新时间
+        function updateLastUpdate(timestamp) {
+            document.getElementById('lastUpdate').textContent = formatTime(timestamp);
+        }
+
+        // 更新虚拟机数量
+        function updateVMCount(count) {
+            document.getElementById('vmCount').textContent = count;
+        }
+
+        // 显示提示消息
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+
+
+
+        // 加载VBOX_DIR配置
+        async function loadVboxDirConfig() {
+            try {
+                const response = await fetch('/api/config/vbox_dir');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const vboxDir = data.data.vbox_dir;
+                    updateSelectedDirectoriesDisplay([vboxDir]);
+                    console.log('VBOX_DIR配置:', vboxDir);
+                } else {
+                    console.error('获取VBOX_DIR配置失败:', data.message);
+                    updateSelectedDirectoriesDisplay(['配置读取失败']);
+                }
+            } catch (error) {
+                console.error('获取VBOX_DIR配置失败:', error);
+                updateSelectedDirectoriesDisplay(['配置读取失败']);
+            }
+        }
+
+        // 加载自动监控配置
+        async function loadAutoMonitorConfig() {
+            try {
+                console.log('开始加载自动监控配置...');
+                const response = await fetch('/api/config/auto_monitor');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.data;
+                    console.log('自动监控配置:', config);
+                    console.debug('配置详情:', {
+                        saved_config: config.saved_config,
+                        default_interval: config.default_interval,
+                        default_auto_start_enabled: config.default_auto_start_enabled
+                    });
+                    
+                    // 设置默认值
+                    const monitoringToggle = document.getElementById('monitoringToggle');
+                    const monitorInterval = document.getElementById('monitorInterval');
+                    const autoStartToggle = document.getElementById('autoStartToggle');
+                    
+                    // 如果有保存的配置，使用保存的配置
+                    if (config.saved_config) {
+                        console.log('使用保存的配置:', config.saved_config);
+                        monitoringToggle.checked = config.saved_config.enabled;
+                        monitorInterval.value = config.saved_config.interval;
+                        autoStartToggle.checked = config.saved_config.auto_start_enabled;
+                    } else {
+                        // 使用默认配置
+                        console.log('使用默认配置');
+                        monitoringToggle.checked = config.default_auto_start_enabled;
+                        monitorInterval.value = config.default_interval;
+                        autoStartToggle.checked = config.default_auto_start_enabled;
+                    }
+                    
+                    console.log('配置设置完成:', {
+                        monitoring: monitoringToggle.checked,
+                        interval: monitorInterval.value,
+                        autoStart: autoStartToggle.checked
+                    });
+                    
+                    // 如果自动监控已启用，启动监控
+                    if (monitoringToggle.checked) {
+                        console.log('自动监控已启用，启动监控...');
+                        const interval = monitorInterval.value;
+                        const autoStart = autoStartToggle.checked;
+                        startMonitoring(interval, autoStart);
+                    } else {
+                        console.log('自动监控未启用');
+                    }
+                } else {
+                    console.error('获取自动监控配置失败:', data.message);
+                }
+            } catch (error) {
+                console.error('获取自动监控配置失败:', error);
+            }
+        }
+
+        // 加载Web自动刷新配置
+        async function loadWebRefreshConfig() {
+            try {
+                console.log('开始加载Web自动刷新配置...');
+                const response = await fetch('/api/config/web_refresh');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.data;
+                    console.log('Web自动刷新配置:', config);
+                    
+                    // 设置默认值
+                    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+                    const autoRefreshInterval = document.getElementById('autoRefreshInterval');
+                    
+                    // 应用保存的配置
+                    if (config.saved_config) {
+                        autoRefreshToggle.checked = config.saved_config.enabled;
+                        autoRefreshInterval.value = config.saved_config.interval;
+                    } else {
+                        // 使用默认配置
+                        autoRefreshToggle.checked = config.default_enabled || false;
+                        autoRefreshInterval.value = config.default_interval || 30;
+                    }
+                    
+                    // 如果自动刷新已启用，启动自动刷新
+                    if (autoRefreshToggle.checked) {
+                        console.log('Web自动刷新已启用，启动自动刷新...');
+                        startAutoRefresh();
+                    } else {
+                        console.log('Web自动刷新未启用');
+                    }
+                } else {
+                    console.error('获取Web自动刷新配置失败:', data.message);
+                }
+            } catch (error) {
+                console.error('获取Web自动刷新配置失败:', error);
+            }
+        }
+
+        // 保存自动监控配置
+        async function saveAutoMonitorConfig() {
+            try {
+                console.log('开始保存自动监控配置...');
+                const monitoringToggle = document.getElementById('monitoringToggle');
+                const monitorInterval = document.getElementById('monitorInterval');
+                const autoStartToggle = document.getElementById('autoStartToggle');
+                
+                // 确保参数类型正确
+                const enabled = Boolean(monitoringToggle.checked);
+                const interval = parseInt(monitorInterval.value);
+                const auto_start_enabled = Boolean(autoStartToggle.checked);
+                
+                const config = {
+                    enabled: enabled,
+                    interval: interval,
+                    auto_start_enabled: auto_start_enabled
+                };
+                
+                console.log('准备保存的配置:', config);
+                console.debug('配置详情:', {
+                    monitoring: enabled,
+                    interval: interval,
+                    autoStart: auto_start_enabled
+                });
+                
+                const response = await fetch('/api/config/auto_monitor', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('自动监控配置保存成功');
+                    console.debug('保存响应:', data);
+                    showAlert('success', '自动监控配置已保存');
+                } else {
+                    console.error('保存自动监控配置失败:', data.message);
+                    console.debug('保存失败响应:', data);
+                    showAlert('danger', '保存自动监控配置失败: ' + data.message);
+                }
+            } catch (error) {
+                console.error('保存自动监控配置失败:', error);
+                showAlert('danger', '保存自动监控配置失败: ' + error.message);
+            }
+        }
+
+
+
+        // 加载选中的目录
+        async function loadSelectedDirectories() {
+            try {
+                const response = await fetch('/api/config/get_directories');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySelectedDirectories(data.data);
+                } else {
+                    console.error('获取选中目录失败:', data.message);
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                console.error('加载选中目录失败:', error);
+                showAlert('danger', '加载选中目录失败: ' + error.message);
+            }
+        }
+
+        // 显示选中的目录
+        function displaySelectedDirectories(directories) {
+            const container = document.getElementById('selectedDirectoriesList');
+            
+            if (directories.length === 0) {
+                container.innerHTML = '<p class="text-muted">暂无选中的目录</p>';
+                return;
+            }
+            
+            let html = '';
+            directories.forEach((directory, index) => {
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">${directory}</div>
+                            <small class="text-muted">虚拟机目录</small>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" onclick="scanDirectory('${directory}')" title="重新扫描">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="removeDirectory(${index})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+
+
+
+
+
+
+
+
+        // 更新选中目录显示
+        function updateSelectedDirectoriesDisplay(directories) {
+            const displayElement = document.getElementById('selectedDirectories');
+            if (directories.length === 0) {
+                displayElement.textContent = '未选择';
+            } else {
+                displayElement.textContent = directories.join(', ');
+            }
+        }
+
+
+
+        // 启动失败标记管理
+        let startFailureMap = new Map();
+
+        // 标记启动失败
+        function markStartFailure(vmName) {
+            startFailureMap.set(vmName, {
+                timestamp: new Date().toISOString(),
+                count: (startFailureMap.get(vmName)?.count || 0) + 1
+            });
+            console.log(`标记虚拟机 ${vmName} 启动失败`);
+        }
+
+        // 清除启动失败标记
+        function clearStartFailure(vmName) {
+            startFailureMap.delete(vmName);
+            console.log(`清除虚拟机 ${vmName} 启动失败标记`);
+        }
+
+        // 获取启动失败状态
+        function getStartFailureStatus(vmName) {
+            return startFailureMap.get(vmName) || null;
+        }
+
+        // 清除后端启动失败标记
+        async function clearBackendStartFailure(vmName) {
+            try {
+                const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/clear_failure`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log(`清除虚拟机 ${vmName} 后端启动失败标记成功`);
+                } else {
+                    console.error(`清除虚拟机 ${vmName} 后端启动失败标记失败:`, data.message);
+                }
+            } catch (error) {
+                console.error(`清除虚拟机 ${vmName} 后端启动失败标记失败:`, error);
+            }
+        }
+
+        // 清除虚拟机异常状态
+        async function clearVMException(vmName) {
+            try {
+                showAlert('info', `正在清除虚拟机 ${vmName} 的操作异常标记...`);
+                
+                const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/clear_exception`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // 重新加载虚拟机列表以更新显示
+                    loadVMs();
+                } else {
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                console.error(`清除虚拟机异常状态失败: ${error}`);
+                showAlert('danger', `清除虚拟机异常状态失败: ${error.message}`);
+            }
+        }
+
+        // 清除虚拟机异常状态（静默模式，不显示提示）
+        async function clearVMExceptionBackend(vmName) {
+            try {
+                const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/clear_exception`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`已清除虚拟机 ${vmName} 的操作异常标记`);
+                } else {
+                    console.error(`清除虚拟机操作异常标记失败: ${data.message}`);
+                }
+            } catch (error) {
+                console.error(`清除虚拟机操作异常标记失败: ${error}`);
+            }
+        }
+
+        // 日志查看相关变量
+        let logsUpdateInterval = null;
+        let logsTerminal = null;
+
+        // 显示日志查看模态框
+        function showLogsModal() {
+            console.log('显示日志查看模态框');
+            const modal = new bootstrap.Modal(document.getElementById('logsModal'));
+            modal.show();
+            
+            // 初始化日志终端
+            logsTerminal = document.getElementById('logsTerminal');
+            
+            // 开始实时更新日志
+            startLogsUpdate();
+        }
+
+        // 开始日志更新
+        function startLogsUpdate() {
+            if (logsUpdateInterval) {
+                clearInterval(logsUpdateInterval);
+            }
+            
+            // 立即获取一次日志
+            updateLogs();
+            
+            // 每2秒更新一次日志
+            logsUpdateInterval = setInterval(updateLogs, 2000);
+        }
+
+        // 停止日志更新
+        function stopLogsUpdate() {
+            if (logsUpdateInterval) {
+                clearInterval(logsUpdateInterval);
+                logsUpdateInterval = null;
+            }
+        }
+
+        // 更新日志显示
+        async function updateLogs() {
+            try {
+                const response = await fetch('/api/logs/monitor');
+                const data = await response.json();
+                
+                if (data.success && logsTerminal) {
+                    // 清空终端内容
+                    logsTerminal.innerHTML = '';
+                    
+                    // 添加日志内容
+                    data.data.logs.forEach(log => {
+                        const logElement = document.createElement('div');
+                        logElement.className = `log-line ${log.level.toLowerCase()}`;
+                        logElement.textContent = log.message;
+                        logsTerminal.appendChild(logElement);
+                    });
+                    
+                    // 滚动到底部
+                    logsTerminal.scrollTop = logsTerminal.scrollHeight;
+                }
+            } catch (error) {
+                console.error('更新日志失败:', error);
+                if (logsTerminal) {
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'text-danger';
+                    errorElement.textContent = `日志更新失败: ${error.message}`;
+                    logsTerminal.appendChild(errorElement);
+                }
+            }
+        }
+
+        // 复制日志
+        function copyLogs() {
+            if (logsTerminal) {
+                const logsText = logsTerminal.innerText;
+                navigator.clipboard.writeText(logsText).then(() => {
+                    showAlert('success', '日志已复制到剪贴板');
+                }).catch(() => {
+                    showAlert('danger', '复制失败，请手动复制');
+                });
+            }
+        }
+
+        // 清空日志
+        function clearLogs() {
+            if (logsTerminal) {
+                logsTerminal.innerHTML = '<div class="text-success">=== 日志已清空 ===</div>';
+            }
+        }
+
+        // 模态框关闭时停止日志更新
+        document.getElementById('logsModal').addEventListener('hidden.bs.modal', function() {
+            stopLogsUpdate();
+        });
+
+        // 在加载虚拟机列表时添加启动失败标记
+        function addStartFailureMarkers(vmList) {
+            vmList.forEach(vm => {
+                // 检查后端返回的启动失败信息
+                if (vm.start_failure) {
+                    // 同步到前端缓存
+                    startFailureMap.set(vm.name, {
+                        timestamp: vm.failure_timestamp,
+                        count: vm.failure_count
+                    });
+                }
+                
+                // 检查前端缓存的失败信息
+                const failureStatus = getStartFailureStatus(vm.name);
+                if (failureStatus) {
+                    vm.start_failure = true;
+                    vm.failure_count = failureStatus.count;
+                    vm.failure_timestamp = failureStatus.timestamp;
+                }
+            });
+        }
+
+        // 清除所有启动失败标记
+        async function clearAllStartFailures() {
+            try {
+                const response = await fetch('/api/vm/clear_all_failures', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('清除所有启动失败标记成功');
+                    showAlert('success', data.message);
+                    startFailureMap.clear(); // 清除前端缓存
+                    loadVMs(); // 重新加载虚拟机列表以更新显示
+                } else {
+                    console.error('清除启动失败标记失败:', data.message);
+                    showAlert('danger', data.message);
+                }
+            } catch (error) {
+                console.error('清除启动失败标记失败:', error);
+                showAlert('danger', '清除启动失败标记失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html> 

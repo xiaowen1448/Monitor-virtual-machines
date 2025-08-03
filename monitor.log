@@ -1,0 +1,386 @@
+2025-08-03 15:22:08,536 - DEBUG - [MONITOR] - monitor - 监控日志系统初始化完成
+2025-08-03 15:22:10,597 - DEBUG - [MONITOR] - monitor - 监控日志系统初始化完成
+2025-08-03 15:22:10,608 - INFO - [MONITOR] - monitor - VirtualBox监控器初始化完成
+2025-08-03 15:22:10,608 - INFO - [MONITOR] - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 15:22:10,608 - INFO - [MONITOR] - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 15:22:10,608 - INFO - [MONITOR] - monitor - 监控间隔: 60秒
+2025-08-03 15:22:25,505 - INFO - [MONITOR] - monitor - 开始监控虚拟机，间隔: 30秒，自动启动: True
+2025-08-03 15:22:25,505 - INFO - [MONITOR] - monitor - 监控启动时间: 2025-08-03T07:22:25.501Z
+2025-08-03 15:22:25,510 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:22:36,507 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:22:36,508 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:22:36.508017', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:22:36,508 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:22:36,508 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:22:47,377 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:22:47,377 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:22:47,377 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:22:47,440 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:22:47,441 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:22:47,441 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:22:47,495 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:22:47,495 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:22:47,496 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:22:47,554 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:22:47,554 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:22:47,554 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:22:47,613 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:22:47,614 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:22:47,614 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:22:47,670 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:22:47,671 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:22:47,671 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:22:47,727 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:22:47,728 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:22:47,728 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:22:47,728 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:22:47,728 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:22:47,728 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:22:47,728 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:22:47,728 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:22:47,729 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:23:17,730 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:23:26,214 - INFO - [MONITOR] - monitor - 停止虚拟机监控
+2025-08-03 15:23:28,560 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:23:28,560 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:23:28.560831', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:23:28,561 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:23:28,561 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:23:31,215 - DEBUG - [MONITOR] - monitor - 监控线程已停止
+2025-08-03 15:23:39,450 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:23:39,450 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:23:39,450 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:23:39,516 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:23:39,516 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:23:39,516 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:23:39,579 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:23:39,580 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:23:39,580 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:23:39,639 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:23:39,639 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:23:39,639 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:23:39,701 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:23:39,701 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:23:39,701 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:23:39,758 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:23:39,758 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:23:39,758 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:23:39,812 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:23:39,813 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:23:39,813 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:23:39,814 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:23:39,814 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:23:39,814 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:23:39,815 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:23:39,816 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:23:39,816 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:24:20,808 - INFO - [MONITOR] - monitor - 开始监控虚拟机，间隔: 30秒，自动启动: True
+2025-08-03 15:24:20,808 - INFO - [MONITOR] - monitor - 监控启动时间: 2025-08-03T07:24:20.801Z
+2025-08-03 15:24:20,809 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:24:31,745 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:24:31,745 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:24:31.745767', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:24:31,746 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:24:31,746 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:24:31,747 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:24:31,747 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:24:31,747 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:24:31,747 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:24:31,747 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:24:42,630 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:24:42,630 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:24:42,630 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:24:42,684 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:24:42,684 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:24:42,684 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:24:42,746 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:24:42,746 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:24:42,746 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:24:42,796 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:24:42,796 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:24:42,797 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:24:42,843 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:24:42,843 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:24:42,843 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:24:42,887 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:24:42,888 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:24:42,888 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:24:42,932 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:24:42,933 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:24:42,933 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:24:42,933 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:24:42,933 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:24:42,934 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:24:42,934 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:24:42,934 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:24:42,934 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:25:12,935 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:25:23,685 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:25:23,685 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:25:23.685706', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:25:23,686 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:25:23,686 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:25:34,507 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:25:34,507 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:25:34,507 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:25:34,560 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:25:34,560 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:25:34,560 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:25:34,608 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:25:34,609 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:25:34,609 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:25:34,653 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:25:34,653 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:25:34,653 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:25:34,716 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:25:34,717 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:25:34,717 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:25:34,775 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:25:34,775 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:25:34,775 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:25:34,822 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:25:34,822 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:25:34,822 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:25:34,822 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:25:34,822 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:25:34,823 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:25:34,823 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:25:34,823 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:25:34,823 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:25:36,039 - INFO - [MONITOR] - monitor - 停止虚拟机监控
+2025-08-03 15:25:41,039 - DEBUG - [MONITOR] - monitor - 监控线程已停止
+2025-08-03 15:26:18,252 - INFO - [MONITOR] - monitor - 开始监控虚拟机，间隔: 30秒，自动启动: True
+2025-08-03 15:26:18,252 - INFO - [MONITOR] - monitor - 监控启动时间: 2025-08-03T07:26:18.247Z
+2025-08-03 15:26:18,252 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:26:29,429 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:26:29,429 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:26:29.429780', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:26:29,429 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:26:29,430 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:26:40,291 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:26:40,291 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:26:40,291 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:26:40,341 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:26:40,341 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:26:40,341 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:26:40,388 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:26:40,389 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:26:40,389 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:26:40,433 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:26:40,433 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:26:40,433 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:26:40,479 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:26:40,479 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:26:40,479 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:26:40,522 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:26:40,522 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:26:40,522 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:26:40,568 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:26:40,568 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:26:40,569 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:26:40,569 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:26:40,569 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:26:40,569 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:26:40,569 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:26:40,569 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:26:40,570 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:27:10,570 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:27:21,293 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:27:21,293 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:27:21.293966', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:27:21,294 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:27:21,294 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:27:31,950 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:27:31,950 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:27:31,950 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:27:31,995 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:27:31,995 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:27:31,995 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:27:32,047 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:27:32,047 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:27:32,047 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:27:32,099 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:27:32,099 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:27:32,099 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:27:32,155 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:27:32,155 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:27:32,155 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:27:32,204 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:27:32,204 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:27:32,204 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:27:32,275 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:27:32,277 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:27:32,277 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:27:32,278 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:27:32,278 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:27:32,278 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:27:32,279 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:27:32,279 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:27:32,279 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:28:02,280 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:28:13,063 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:28:13,063 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:28:13.063682', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:28:13,064 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:28:13,064 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:28:23,848 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:28:23,848 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:28:23,848 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:28:23,887 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 失败
+2025-08-03 15:28:23,888 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:28:23,888 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:28:23,935 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 失败
+2025-08-03 15:28:23,935 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:28:23,935 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:28:23,977 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 失败
+2025-08-03 15:28:23,977 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:28:23,977 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:28:24,019 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:28:24,020 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:28:24,020 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:28:24,060 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:28:24,061 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:28:24,061 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:28:24,102 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:28:24,102 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:28:24,102 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 0 个
+2025-08-03 15:28:24,102 - WARNING - [MONITOR] - monitor - 虚拟机 win10 启动失败
+2025-08-03 15:28:24,102 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本001 启动失败
+2025-08-03 15:28:24,102 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本002 启动失败
+2025-08-03 15:28:24,102 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:28:24,103 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:28:24,103 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:28:54,104 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:28:55,359 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=6
+2025-08-03 15:28:55,359 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:28:55.359567', 'total_vms': 6, 'running_vms': 0, 'stopped_vms': 6, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:28:55,360 - INFO - [MONITOR] - monitor - 发现 6 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 (状态: poweroff)
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:28:55,360 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:28:55,973 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:28:55,973 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 (状态: poweroff)
+2025-08-03 15:28:55,973 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10
+2025-08-03 15:29:00,139 - INFO - [MONITOR] - monitor - 自动启动虚拟机 win10 成功
+2025-08-03 15:29:00,139 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本001 (状态: poweroff)
+2025-08-03 15:29:00,139 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本001
+2025-08-03 15:29:04,303 - INFO - [MONITOR] - monitor - 自动启动虚拟机 win10 副本001 成功
+2025-08-03 15:29:04,304 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本002 (状态: poweroff)
+2025-08-03 15:29:04,304 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本002
+2025-08-03 15:29:08,975 - INFO - [MONITOR] - monitor - 自动启动虚拟机 win10 副本002 成功
+2025-08-03 15:29:08,975 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:29:08,975 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:29:12,462 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:29:12,463 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:29:12,463 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:29:16,088 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:29:16,089 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:29:16,089 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:29:19,798 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:29:19,798 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 6 个虚拟机
+2025-08-03 15:29:19,799 - INFO - [MONITOR] - monitor - 本次检查启动了 6 个虚拟机，成功 3 个
+2025-08-03 15:29:19,799 - INFO - [MONITOR] - monitor - 虚拟机 win10 启动成功
+2025-08-03 15:29:19,799 - INFO - [MONITOR] - monitor - 虚拟机 win10 副本001 启动成功
+2025-08-03 15:29:19,799 - INFO - [MONITOR] - monitor - 虚拟机 win10 副本002 启动成功
+2025-08-03 15:29:19,799 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:29:19,799 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:29:19,799 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:29:49,800 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:29:50,671 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 15:29:50,671 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:29:50.671430', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:29:50,671 - INFO - [MONITOR] - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:29:50,671 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:29:50,671 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:29:50,671 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:29:51,458 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:29:51,458 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:29:51,458 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:29:54,691 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:29:54,691 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:29:54,691 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:29:57,996 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:29:57,997 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:29:57,997 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:30:01,386 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:30:01,387 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 15:30:01,387 - INFO - [MONITOR] - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 15:30:01,387 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:30:01,387 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:30:01,388 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:30:04,921 - WARNING - [MONITOR] - monitor - 监控已在运行中
+2025-08-03 15:30:16,708 - WARNING - [MONITOR] - monitor - 监控已在运行中
+2025-08-03 15:30:31,388 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:30:32,360 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 15:30:32,360 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:30:32.360182', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:30:32,361 - INFO - [MONITOR] - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:30:32,362 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:30:32,362 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:30:32,362 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:30:33,257 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:30:33,259 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:30:33,259 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:30:36,869 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:30:36,869 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:30:36,869 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:30:40,779 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:30:40,780 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:30:40,780 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:30:44,277 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:30:44,277 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 15:30:44,277 - INFO - [MONITOR] - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 15:30:44,277 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:30:44,278 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:30:44,278 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:30:47,718 - INFO - [MONITOR] - monitor - 停止虚拟机监控
+2025-08-03 15:30:52,719 - DEBUG - [MONITOR] - monitor - 监控线程已停止
+2025-08-03 15:30:59,510 - INFO - [MONITOR] - monitor - 开始监控虚拟机，间隔: 30秒，自动启动: True
+2025-08-03 15:30:59,510 - INFO - [MONITOR] - monitor - 监控启动时间: 2025-08-03T07:30:59.497Z
+2025-08-03 15:30:59,515 - INFO - [MONITOR] - monitor - 执行监控检查...
+2025-08-03 15:31:00,538 - DEBUG - [MONITOR] - monitor - 当前虚拟机状态: 总数=6, 已停止=3
+2025-08-03 15:31:00,538 - INFO - [MONITOR] - monitor - 状态监控结果: {'timestamp': '2025-08-03T15:31:00.538185', 'total_vms': 6, 'running_vms': 3, 'stopped_vms': 3, 'paused_vms': 0, 'auto_start_enabled': True}
+2025-08-03 15:31:00,538 - INFO - [MONITOR] - monitor - 发现 3 个已停止的虚拟机，开始自动启动...
+2025-08-03 15:31:00,538 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:31:00,538 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:31:00,538 - DEBUG - [MONITOR] - monitor - 准备启动虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:31:01,522 - INFO - [MONITOR] - monitor - 开始自动启动检查，共发现 6 个虚拟机
+2025-08-03 15:31:01,522 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本111 (状态: poweroff)
+2025-08-03 15:31:01,522 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本111
+2025-08-03 15:31:02,388 - INFO - [MONITOR] - monitor - 停止虚拟机监控
+2025-08-03 15:31:04,896 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本111 失败
+2025-08-03 15:31:04,897 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本3333 (状态: poweroff)
+2025-08-03 15:31:04,897 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本3333
+2025-08-03 15:31:07,389 - DEBUG - [MONITOR] - monitor - 监控线程已停止
+2025-08-03 15:31:08,097 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本3333 失败
+2025-08-03 15:31:08,098 - INFO - [MONITOR] - monitor - 发现已停止的虚拟机: win10 副本44444 (状态: poweroff)
+2025-08-03 15:31:08,098 - DEBUG - [MONITOR] - monitor - 尝试启动虚拟机: win10 副本44444
+2025-08-03 15:31:11,176 - ERROR - [MONITOR] - monitor - 自动启动虚拟机 win10 副本44444 失败
+2025-08-03 15:31:11,176 - INFO - [MONITOR] - monitor - 自动启动检查完成，共处理 3 个虚拟机
+2025-08-03 15:31:11,176 - INFO - [MONITOR] - monitor - 本次检查启动了 3 个虚拟机，成功 0 个
+2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
+2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
+2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败

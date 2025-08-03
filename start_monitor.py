@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+VirtualBox虚拟机监控系统启动脚本
+"""
+
+import os
+import sys
+import subprocess
+import time
+from pathlib import Path
+
+def check_virtualbox():
+    """检查VirtualBox是否已安装"""
+    try:
+        # 尝试运行VBoxManage --version
+        result = subprocess.run(['VBoxManage', '--version'], 
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            print(f"✓ VirtualBox已安装，版本: {result.stdout.strip()}")
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    # 检查常见安装路径
+    possible_paths = [
+        r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe",
+        r"C:\Program Files (x86)\Oracle\VirtualBox\VBoxManage.exe",
+        "/usr/bin/VBoxManage",
+        "/usr/local/bin/VBoxManage",
+        "/Applications/VirtualBox.app/Contents/MacOS/VBoxManage"
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"✓ 找到VirtualBox: {path}")
+            return True
+    
+    print("✗ 未找到VirtualBox，请确保已正确安装")
+    return False
+
+def check_python_dependencies():
+    """检查Python依赖"""
+    required_packages = ['flask']
+    
+    missing_packages = []
+    for package in required_packages:
+        try:
+            __import__(package)
+            print(f"✓ {package} 已安装")
+        except ImportError:
+            missing_packages.append(package)
+            print(f"✗ {package} 未安装")
+    
+    if missing_packages:
+        print(f"\n请安装缺失的依赖包:")
+        print(f"pip install {' '.join(missing_packages)}")
+        return False
+    
+    return True
+
+def create_config():
+    """创建配置文件"""
+    config_content = '''# VirtualBox监控系统配置文件
+
+# VirtualBox虚拟机目录路径
+# 留空则使用默认路径
+VBOX_DIR = ""
+
+# VirtualBox可执行文件路径
+# 留空则自动检测
+VBOXMANAGE_PATH = ""
+
+# 监控间隔（秒）
+MONITOR_INTERVAL = 60
+
+# Web服务端口
+WEB_PORT = 5000
+
+# Web服务主机
+WEB_HOST = "0.0.0.0"
+
+# 日志级别
+LOG_LEVEL = "INFO"
+
+# 自动启动已停止的虚拟机
+AUTO_START_STOPPED_VMS = True
+
+# 日志文件路径
+LOG_FILE = "vbox_monitor.log"
+
+# Web日志文件路径
+WEB_LOG_FILE = "vbox_web.log"
+
+# 日志格式
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+
+# 日志编码
+LOG_ENCODING = "utf-8"
+
+# 虚拟机状态检查超时时间（秒）
+VM_STATUS_TIMEOUT = 10
+
+# 虚拟机启动超时时间（秒）
+VM_START_TIMEOUT = 60
+
+# 虚拟机停止超时时间（秒）
+VM_STOP_TIMEOUT = 30
+
+# 扫描虚拟机超时时间（秒）
+SCAN_VMS_TIMEOUT = 10
+
+# 获取虚拟机信息超时时间（秒）
+VM_INFO_TIMEOUT = 10
+
+# 是否启用详细日志
+VERBOSE_LOGGING = True
+
+# 是否在启动时自动扫描虚拟机
+AUTO_SCAN_ON_START = True
+
+# 是否在监控时显示详细状态
+SHOW_DETAILED_STATUS = True
+
+# Web界面自动刷新间隔（秒）
+WEB_AUTO_REFRESH_INTERVAL = 30
+
+# 监控线程是否为守护线程
+MONITOR_THREAD_DAEMON = True
+
+# 是否启用Web界面
+ENABLE_WEB_INTERFACE = True
+
+# 是否启用API接口
+ENABLE_API_INTERFACE = True
+
+# 是否启用自动监控功能
+ENABLE_AUTO_MONITORING = True
+
+# 是否启用自动启动功能
+ENABLE_AUTO_START = True
+
+# 是否启用详细错误信息
+SHOW_DETAILED_ERRORS = True
+
+# VirtualBox可执行文件常见路径
+VBOXMANAGE_POSSIBLE_PATHS = [
+    r"C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe",
+    r"C:\\Program Files (x86)\\Oracle\\VirtualBox\\VBoxManage.exe",
+    "/usr/bin/VBoxManage",
+    "/usr/local/bin/VBoxManage",
+    "/Applications/VirtualBox.app/Contents/MacOS/VBoxManage"
+]
+
+# 是否启用自动检测VirtualBox路径
+AUTO_DETECT_VBOXMANAGE = True
+
+# VirtualBox启动类型
+# 可选值: headless, gui, sdl
+VBOX_START_TYPE = "headless"
+
+# 虚拟机状态映射（中文显示）
+VM_STATUS_MAPPING = {
+    'running': '运行中',
+    'poweroff': '已关闭',
+    'paused': '已暂停',
+    'saved': '已保存',
+    'aborted': '异常终止',
+    'unknown': '未知状态'
+}
+
+# 虚拟机状态颜色映射
+VM_STATUS_COLORS = {
+    'running': 'success',
+    'poweroff': 'secondary',
+    'paused': 'warning',
+    'saved': 'info',
+    'aborted': 'danger',
+    'unknown': 'dark'
+}
+
+# 虚拟机状态图标映射
+VM_STATUS_ICONS = {
+    'running': 'fas fa-play',
+    'poweroff': 'fas fa-stop',
+    'paused': 'fas fa-pause',
+    'saved': 'fas fa-save',
+    'aborted': 'fas fa-exclamation-triangle',
+    'unknown': 'fas fa-question'
+}
+'''
+    
+    config_file = Path(__file__).parent / "config.py"
+    if not config_file.exists():
+        with open(config_file, 'w', encoding='utf-8') as f:
+            f.write(config_content)
+        print("✓ 配置文件已创建: config.py")
+    else:
+        print("✓ 配置文件已存在: config.py")
+
+def main():
+    """主函数"""
+    print("=== VirtualBox虚拟机监控系统启动检查 ===")
+    print()
+    
+    # 检查VirtualBox
+    if not check_virtualbox():
+        print("\n请先安装VirtualBox，然后重新运行此脚本")
+        return False
+    
+    print()
+    
+    # 检查Python依赖
+    if not check_python_dependencies():
+        print("\n请安装缺失的依赖包后重新运行此脚本")
+        return False
+    
+    print()
+    
+    # 创建配置文件
+    create_config()
+    
+    print()
+    print("=== 启动监控系统 ===")
+    
+    # 启动Web应用
+    try:
+        from vbox_web import app
+        print("✓ 监控系统启动成功")
+        print(f"🌐 访问地址: http://localhost:5000")
+        print("按 Ctrl+C 停止服务")
+        
+        app.run(host='0.0.0.0', port=5000, debug=False)
+        
+    except ImportError as e:
+        print(f"✗ 导入模块失败: {e}")
+        return False
+    except KeyboardInterrupt:
+        print("\n✓ 监控系统已停止")
+        return True
+    except Exception as e:
+        print(f"✗ 启动失败: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1) 
