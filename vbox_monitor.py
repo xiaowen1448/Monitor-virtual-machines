@@ -251,89 +251,143 @@ class VirtualBoxMonitor:
         
         raise FileNotFoundError(error_msg)
     
-    def scan_vms(self) -> List[Dict]:
+    def scan_vms(self, scan_status: bool = False) -> List[Dict]:
         """
-        扫描虚拟机目录，发现所有虚拟机
+        扫描VBOX_DIR目录中的虚拟机，只扫描指定目录中的虚拟机
+        默认只扫描虚拟机文件，不扫描状态以提高性能
         
+        Args:
+            scan_status: 是否扫描虚拟机状态，默认False以提高性能
+            
         Returns:
             虚拟机信息列表
         """
         vms = []
         
-        logger.debug(f"开始扫描虚拟机，VBoxManage路径: {self.vboxmanage_path}")
-        logger.debug(f"虚拟机目录: {self.vbox_dir}")
+        logger.info(f"开始扫描VBOX_DIR目录: {self.vbox_dir}")
         
         if not os.path.exists(self.vbox_dir):
-            logger.warning(f"虚拟机目录不存在: {self.vbox_dir}")
-            logger.info("尝试使用VBoxManage命令获取虚拟机列表...")
-            # 即使目录不存在，也尝试通过VBoxManage命令获取虚拟机列表
-        else:
-            logger.info(f"扫描虚拟机目录: {self.vbox_dir}")
+            logger.error(f"VBOX_DIR目录不存在: {self.vbox_dir}")
+            return vms
         
         try:
-            # 使用VBoxManage list vms命令获取所有虚拟机
-            logger.debug(f"执行命令: {self.vboxmanage_path} list vms")
-            result = subprocess.run(
-                [self.vboxmanage_path, 'list', 'vms'],
-                capture_output=True, timeout=SCAN_VMS_TIMEOUT
-            )
+            # 直接扫描VBOX_DIR目录中的虚拟机文件
+            vbox_dir_abs = os.path.abspath(self.vbox_dir)
+            logger.debug(f"VBOX_DIR绝对路径: {vbox_dir_abs}")
             
-            # 手动处理编码
-            logger.debug(f"命令执行结果 - 返回码: {result.returncode}")
-            if result.returncode == 0:
-                try:
-                    stdout = result.stdout.decode('utf-8', errors='ignore')
-                    logger.debug("使用UTF-8编码解码成功")
-                except UnicodeDecodeError:
-                    try:
-                        stdout = result.stdout.decode('gbk', errors='ignore')
-                        logger.debug("使用GBK编码解码成功")
-                    except UnicodeDecodeError:
-                        stdout = result.stdout.decode('latin-1', errors='ignore')
-                        logger.debug("使用Latin-1编码解码成功")
-            else:
-                stdout = ""
-                logger.warning(f"命令执行失败，返回码: {result.returncode}")
-                try:
-                    stderr = result.stderr.decode('utf-8', errors='ignore')
-                    logger.debug(f"错误输出: {stderr}")
-                except:
-                    pass
-            
-            if result.returncode == 0:
-                lines = stdout.strip().split('\n')
-                logger.debug(f"解析到 {len(lines)} 行输出")
-                for line in lines:
-                    if line.strip():
-                        logger.debug(f"处理行: {line.strip()}")
-                        # 解析虚拟机信息，格式: "VM名称" {UUID}
-                        parts = line.strip().split(' {')
-                        if len(parts) == 2:
-                            vm_name = parts[0].strip('"')
-                            vm_uuid = parts[1].strip('}')
-                            
-                            logger.debug(f"解析虚拟机: 名称={vm_name}, UUID={vm_uuid}")
-                            
+            # 遍历VBOX_DIR目录
+            for item in os.listdir(self.vbox_dir):
+                item_path = os.path.join(self.vbox_dir, item)
+                
+                # 检查是否是目录
+                if os.path.isdir(item_path):
+                    # 查找.vbox文件
+                    vbox_files = [f for f in os.listdir(item_path) if f.endswith('.vbox')]
+                    
+                    if vbox_files:
+                        # 找到.vbox文件，这是一个虚拟机
+                        vm_name = item
+                        vbox_file = os.path.join(item_path, vbox_files[0])
+                        
+                        logger.debug(f"发现虚拟机目录: {item_path}")
+                        logger.debug(f"虚拟机文件: {vbox_file}")
+                        
+                        # 尝试从VBoxManage获取虚拟机UUID
+                        vm_uuid = self._get_vm_uuid_from_vboxmanage(vm_name)
+                        
+                        if vm_uuid:
                             vm_info = {
                                 'name': vm_name,
                                 'uuid': vm_uuid,
-                                'path': self._get_vm_path(vm_name),
-                                'status': 'unknown'
+                                'path': vbox_file,
+                                'status': 'unknown',
+                                'last_check': datetime.now().isoformat()
                             }
+                            
+                            # 只有在需要时才扫描状态
+                            if scan_status:
+                                try:
+                                    status = self.get_vm_status(vm_name)
+                                    vm_info['status'] = status
+                                    logger.debug(f"获取虚拟机 {vm_name} 状态: {status}")
+                                except Exception as e:
+                                    logger.warning(f"获取虚拟机 {vm_name} 状态失败: {e}")
+                                    vm_info['status'] = 'unknown'
+                            
                             vms.append(vm_info)
-                            logger.info(f"发现虚拟机: {vm_name} ({vm_uuid})")
+                            logger.info(f"发现VBOX_DIR中的虚拟机: {vm_name} (UUID: {vm_uuid})")
                         else:
-                            logger.debug(f"无法解析行: {line.strip()}")
+                            logger.warning(f"无法获取虚拟机 {vm_name} 的UUID，跳过")
+                    else:
+                        logger.debug(f"目录 {item_path} 中没有找到.vbox文件，跳过")
             
-        except subprocess.TimeoutExpired:
-            logger.error(f"扫描虚拟机超时 ({SCAN_VMS_TIMEOUT}秒)")
         except Exception as e:
-            if VERBOSE_LOGGING:
-                logger.error(f"扫描虚拟机时出错: {e}")
-            else:
-                logger.error("扫描虚拟机时出错")
+            logger.error(f"扫描VBOX_DIR目录时出错: {e}")
+        
+        logger.info(f"扫描完成，在VBOX_DIR中发现 {len(vms)} 个虚拟机")
+        
+        # 添加详细的扫描结果信息
+        if vms:
+            logger.info("扫描到的虚拟机列表:")
+            for vm in vms:
+                logger.info(f"  - {vm['name']} (UUID: {vm['uuid']}, 路径: {vm['path']})")
+        else:
+            logger.warning("未在VBOX_DIR中发现任何虚拟机")
+            logger.info("请检查以下可能的原因:")
+            logger.info("1. VBOX_DIR路径是否正确")
+            logger.info("2. 该目录中是否有虚拟机文件(.vbox)")
+            logger.info("3. 虚拟机是否已正确注册到VirtualBox")
         
         return vms
+    
+    def scan_vm_status_async(self, vms: List[Dict]) -> List[Dict]:
+        """
+        异步扫描虚拟机状态，提高性能
+        
+        Args:
+            vms: 虚拟机列表
+            
+        Returns:
+            更新状态后的虚拟机列表
+        """
+        import concurrent.futures
+        
+        def get_single_vm_status(vm):
+            """获取单个虚拟机状态"""
+            try:
+                status = self.get_vm_status(vm['name'])
+                vm['status'] = status
+                vm['last_check'] = datetime.now().isoformat()
+                logger.debug(f"异步获取虚拟机 {vm['name']} 状态: {status}")
+                return vm
+            except Exception as e:
+                logger.warning(f"异步获取虚拟机 {vm['name']} 状态失败: {e}")
+                vm['status'] = 'unknown'
+                vm['last_check'] = datetime.now().isoformat()
+                return vm
+        
+        logger.info(f"开始异步扫描 {len(vms)} 个虚拟机的状态")
+        
+        # 使用线程池异步获取状态
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(vms))) as executor:
+            # 提交所有任务
+            future_to_vm = {executor.submit(get_single_vm_status, vm): vm for vm in vms}
+            
+            # 收集结果
+            updated_vms = []
+            for future in concurrent.futures.as_completed(future_to_vm):
+                try:
+                    updated_vm = future.result()
+                    updated_vms.append(updated_vm)
+                except Exception as e:
+                    vm = future_to_vm[future]
+                    logger.error(f"异步获取虚拟机 {vm['name']} 状态时出错: {e}")
+                    vm['status'] = 'unknown'
+                    vm['last_check'] = datetime.now().isoformat()
+                    updated_vms.append(vm)
+        
+        logger.info(f"异步状态扫描完成，共处理 {len(updated_vms)} 个虚拟机")
+        return updated_vms
     
     def _get_vm_path(self, vm_name: str) -> str:
         """获取虚拟机文件路径"""
@@ -369,6 +423,44 @@ class VirtualBoxMonitor:
             return vbox_file
         else:
             return vm_dir
+    
+    def _get_vm_uuid_from_vboxmanage(self, vm_name: str) -> str:
+        """从VBoxManage获取虚拟机的UUID"""
+        try:
+            logger.debug(f"尝试从VBoxManage获取虚拟机 {vm_name} 的UUID")
+            result = subprocess.run(
+                [self.vboxmanage_path, 'showvminfo', vm_name, '--machinereadable'],
+                capture_output=True, timeout=VM_INFO_TIMEOUT
+            )
+            
+            if result.returncode == 0:
+                try:
+                    stdout = result.stdout.decode('utf-8', errors='ignore')
+                except UnicodeDecodeError:
+                    try:
+                        stdout = result.stdout.decode('gbk', errors='ignore')
+                    except UnicodeDecodeError:
+                        stdout = result.stdout.decode('latin-1', errors='ignore')
+                
+                lines = stdout.strip().split('\n')
+                for line in lines:
+                    if line.startswith('UUID='):
+                        uuid = line.split('=', 1)[1].strip().strip('"')
+                        logger.debug(f"获取到虚拟机 {vm_name} 的UUID: {uuid}")
+                        return uuid
+            else:
+                logger.debug(f"无法从VBoxManage获取虚拟机 {vm_name} 的信息")
+                
+        except Exception as e:
+            logger.debug(f"获取虚拟机 {vm_name} 的UUID时出错: {e}")
+        
+        # 如果无法从VBoxManage获取UUID，生成一个基于名称的UUID
+        import hashlib
+        hash_object = hashlib.md5(vm_name.encode())
+        uuid = hash_object.hexdigest()
+        uuid = f"{uuid[:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}"
+        logger.debug(f"为虚拟机 {vm_name} 生成UUID: {uuid}")
+        return uuid
     
     def get_vm_status(self, vm_name: str) -> str:
         """
@@ -662,25 +754,32 @@ class VirtualBoxMonitor:
 
 
     
-    def get_all_vm_status(self) -> List[Dict]:
+    def get_all_vm_status(self, scan_status: bool = True) -> List[Dict]:
         """
         获取所有虚拟机状态
         
+        Args:
+            scan_status: 是否扫描虚拟机状态，默认True
+            
         Returns:
             虚拟机状态列表
         """
-        vms = self.scan_vms()
+        # 首先快速扫描虚拟机文件
+        vms = self.scan_vms(scan_status=False)
         vm_status_list = []
         start_failures = self.get_start_failures()
         
+        # 如果需要扫描状态，使用异步方式
+        if scan_status:
+            vms = self.scan_vm_status_async(vms)
+        
         for vm in vms:
-            status = self.get_vm_status(vm['name'])
             vm_info = {
                 'name': vm['name'],
                 'uuid': vm['uuid'],
                 'path': vm['path'],
-                'status': status,
-                'last_check': datetime.now().isoformat()
+                'status': vm['status'],
+                'last_check': vm['last_check']
             }
             
             # 添加启动失败信息

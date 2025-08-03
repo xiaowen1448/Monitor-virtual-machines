@@ -440,6 +440,20 @@ def index():
     """主页"""
     return render_template('index.html')
 
+@app.route('/.well-known/appspecific/com.chrome.devtools.json')
+def chrome_devtools_config():
+    """处理Chrome DevTools配置文件请求"""
+    config = {
+        "version": "1.0",
+        "description": "VirtualBox VM Monitor DevTools Configuration",
+        "features": {
+            "debugging": True,
+            "profiling": False,
+            "network": True
+        }
+    }
+    return jsonify(config)
+
 @app.route('/api/vms')
 @login_required
 def api_get_vms():
@@ -453,8 +467,12 @@ def api_get_vms():
                 'message': '监控器未初始化'
             })
         
+        # 获取查询参数
+        scan_status = request.args.get('scan_status', 'true').lower() == 'true'
+        logger.debug(f"扫描状态参数: {scan_status}")
+        
         logger.debug("调用monitor.get_all_vm_status()")
-        vm_list = monitor.get_all_vm_status()
+        vm_list = monitor.get_all_vm_status(scan_status=scan_status)
         logger.debug(f"获取到 {len(vm_list)} 个虚拟机状态")
         
         # 详细记录每个虚拟机的状态
@@ -464,6 +482,7 @@ def api_get_vms():
         response_data = {
             'success': True,
             'data': vm_list,
+            'scan_status': scan_status,
             'timestamp': datetime.now().isoformat()
         }
         logger.debug(f"返回响应: {response_data}")
@@ -743,20 +762,32 @@ def api_auto_start_stopped_vms():
 @login_required
 def api_scan_vms():
     """重新扫描虚拟机"""
+    logger.debug("API调用: /api/scan - 扫描虚拟机")
     try:
         if not monitor:
+            logger.warning("监控器未初始化")
             return jsonify({
                 'success': False,
                 'message': '监控器未初始化'
             })
         
-        vms = monitor.scan_vms()
-        return jsonify({
+        # 获取查询参数
+        scan_status = request.args.get('scan_status', 'false').lower() == 'true'
+        logger.debug(f"扫描状态参数: {scan_status}")
+        
+        logger.debug("调用monitor.scan_vms()")
+        vms = monitor.scan_vms(scan_status=scan_status)
+        logger.debug(f"扫描到 {len(vms)} 个虚拟机")
+        
+        response_data = {
             'success': True,
             'data': vms,
+            'scan_status': scan_status,
             'message': f'扫描完成，发现 {len(vms)} 个虚拟机',
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        logger.debug(f"返回响应: {response_data}")
+        return jsonify(response_data)
     except Exception as e:
         logger.error(f"扫描虚拟机失败: {e}")
         return jsonify({
@@ -793,6 +824,51 @@ def api_monitor_vm_status():
         return jsonify({
             'success': False,
             'message': f'监控虚拟机状态失败: {str(e)}'
+        })
+
+@app.route('/api/vms/update_status')
+@login_required
+def api_update_vm_status():
+    """异步更新虚拟机状态"""
+    logger.debug("API调用: /api/vms/update_status - 异步更新虚拟机状态")
+    try:
+        if not monitor:
+            logger.warning("监控器未初始化")
+            return jsonify({
+                'success': False,
+                'message': '监控器未初始化'
+            })
+        
+        # 获取查询参数
+        vm_names = request.args.get('vm_names', '').split(',')
+        if vm_names == ['']:
+            vm_names = []
+        
+        logger.debug(f"需要更新状态的虚拟机: {vm_names}")
+        
+        # 获取当前虚拟机列表
+        vms = monitor.scan_vms(scan_status=False)
+        
+        # 如果指定了虚拟机名称，只更新指定的虚拟机
+        if vm_names:
+            vms = [vm for vm in vms if vm['name'] in vm_names]
+        
+        # 异步更新状态
+        updated_vms = monitor.scan_vm_status_async(vms)
+        
+        response_data = {
+            'success': True,
+            'data': updated_vms,
+            'message': f'状态更新完成，共更新 {len(updated_vms)} 个虚拟机',
+            'timestamp': datetime.now().isoformat()
+        }
+        logger.debug(f"返回响应: {response_data}")
+        return jsonify(response_data)
+    except Exception as e:
+        logger.error(f"异步更新虚拟机状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'异步更新虚拟机状态失败: {str(e)}'
         })
 
 @app.route('/api/config/update_directories', methods=['POST'])
