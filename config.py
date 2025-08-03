@@ -1,19 +1,21 @@
+
+# 登录配置
+LOGIN_USERNAME = "admin"
+LOGIN_PASSWORD = "123456"
+LOGIN_REQUIRED = True
+SESSION_SECRET_KEY = "vbox_monitor_secret_key_2024"
+SESSION_TIMEOUT = 3600  # 会话超时时间（秒） 
+
 # VirtualBox监控系统配置文件
 
 # VirtualBox虚拟机目录路径
-# 留空则使用默认路径
 VBOX_DIR = r"D:\Users\wx\VirtualBox VMs"
 
 # VirtualBox可执行文件路径
-# 设置为"auto"表示自动检测，或留空使用默认检测
 VBOXMANAGE_PATH = r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"
-
-# 监控间隔（秒）
-MONITOR_INTERVAL = 60
 
 # Web服务端口
 WEB_PORT = 5000
-
 # Web服务主机
 WEB_HOST = "0.0.0.0"
 
@@ -80,9 +82,6 @@ SCAN_VMS_TIMEOUT = 10
 # 获取虚拟机信息超时时间（秒）
 VM_INFO_TIMEOUT = 10
 
-# 是否启用详细日志
-VERBOSE_LOGGING = True
-
 # 是否在启动时自动扫描虚拟机
 AUTO_SCAN_ON_START = True
 
@@ -90,7 +89,10 @@ AUTO_SCAN_ON_START = True
 SHOW_DETAILED_STATUS = True
 
 # Web界面自动刷新间隔（秒）
-WEB_AUTO_REFRESH_INTERVAL = 30
+WEB_AUTO_REFRESH_INTERVAL = 60
+
+# Web界面自动刷新启用状态
+WEB_AUTO_REFRESH_ENABLED = True
 
 # 监控线程是否为守护线程
 MONITOR_THREAD_DAEMON = True
@@ -100,9 +102,6 @@ ENABLE_WEB_INTERFACE = True
 
 # 是否启用API接口
 ENABLE_API_INTERFACE = True
-
-# 是否启用自动监控功能
-ENABLE_AUTO_MONITORING = True
 
 # 是否启用自动启动功能
 ENABLE_AUTO_START = True
@@ -153,11 +152,9 @@ VBOXMANAGE_POSSIBLE_PATHS = [
 AUTO_DETECT_VBOXMANAGE = True
 
 # VirtualBox启动类型
-# 可选值: headless, gui, sdl
 VBOX_START_TYPE = "headless"
 
 # 监控虚拟机状态功能
-# 是否启用监控虚拟机状态功能
 ENABLE_VM_STATUS_MONITORING = True
 
 # 监控虚拟机状态间隔（秒）
@@ -167,7 +164,6 @@ VM_STATUS_MONITOR_INTERVAL = 30
 SHOW_VM_STATUS_MONITOR_BUTTON = True
 
 # 母盘虚拟机配置
-# 母盘虚拟机名称列表（这些虚拟机将被排除在自动启动之外）
 MASTER_VM_EXCEPTIONS = [
     "TemplateVM",
     "BaseVM", 
@@ -180,7 +176,6 @@ MASTER_VM_EXCEPTIONS = [
 ENABLE_MASTER_VM_EXCEPTIONS = True
 
 # 选中的虚拟机目录配置
-# 用户选择的虚拟机目录路径
 SELECTED_VM_DIRECTORIES = [
     r"D:\Users\wx\VirtualBox VMs"
 ]
@@ -192,7 +187,6 @@ ENABLE_MULTI_DIRECTORY_MONITORING = True
 SHOW_DIRECTORY_SELECTION = True
 
 # 监控配置
-# 是否启用实时状态监控
 ENABLE_REALTIME_STATUS_MONITORING = True
 
 # 状态监控更新间隔（秒）
@@ -202,7 +196,6 @@ STATUS_UPDATE_INTERVAL = 15
 ENABLE_STATUS_CHANGE_NOTIFICATIONS = True
 
 # 监控按钮配置
-# 监控按钮显示文本
 MONITOR_BUTTON_TEXT = "监控虚拟机状态"
 
 # 监控按钮图标
@@ -222,7 +215,6 @@ MONITOR_STATUS_INDICATOR_COLORS = {
 }
 
 # 自动监控配置
-# 是否启用自动监控
 ENABLE_AUTO_MONITORING = False
 
 # 默认自动监控间隔（秒）
@@ -235,5 +227,8 @@ DEFAULT_AUTO_START_ENABLED = False
 AUTO_MONITOR_CONFIG = {
     'enabled': False,
     'interval': 30,
-    'auto_start_enabled': False
-}
+    'auto_start_enabled': False,
+} 
+
+
+

@@ -241,11 +241,12 @@ def main():
     # 启动Web应用
     try:
         from vbox_web import app
+        from config import WEB_HOST, WEB_PORT
         print("✓ 监控系统启动成功")
-        print(f"🌐 访问地址: http://localhost:5000")
+        print(f"🌐 访问地址: http://localhost:{WEB_PORT}")
         print("按 Ctrl+C 停止服务")
         
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host=WEB_HOST, port=WEB_PORT, debug=False)
         
     except ImportError as e:
         print(f"✗ 导入模块失败: {e}")

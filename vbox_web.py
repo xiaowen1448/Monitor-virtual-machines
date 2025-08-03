@@ -10,18 +10,31 @@ import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from functools import wraps
 import os
-import datetime
 import time
 import subprocess
 import sys
 import importlib
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # 添加当前目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from vbox_monitor import get_vbox_monitor, VirtualBoxMonitor
+
+# 登录认证装饰器
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            from config import LOGIN_REQUIRED
+            if LOGIN_REQUIRED and not session.get('logged_in'):
+                return redirect(url_for('login'))
+        except ImportError:
+            # 如果配置文件中没有LOGIN_REQUIRED，默认不要求登录
+            pass
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 添加配置重载功能
 def reload_config():
@@ -33,9 +46,12 @@ def reload_config():
         
         # 重新导入config模块
         import config
-        importlib.reload(config)
         
-        logger.info("配置文件重新加载成功")
+        # 重新导入配置变量
+        global WEB_HOST, WEB_PORT
+        from config import WEB_HOST, WEB_PORT
+        
+        logger.info(f"配置文件重新加载成功: WEB_HOST={WEB_HOST}, WEB_PORT={WEB_PORT}")
         return True
     except Exception as e:
         logger.error(f"重新加载配置文件失败: {e}")
@@ -48,33 +64,81 @@ def update_config_value(key, value):
         
         # 读取当前配置文件
         with open(config_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+            content = f.read()
         
-        # 查找并更新指定配置项
-        updated = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith(f'{key} ='):
-                # 根据值的类型格式化
-                if isinstance(value, bool):
-                    lines[i] = f'{key} = {value}\n'
-                elif isinstance(value, str):
-                    lines[i] = f'{key} = "{value}"\n'
-                elif isinstance(value, (int, float)):
-                    lines[i] = f'{key} = {value}\n'
-                elif isinstance(value, dict):
-                    lines[i] = f'{key} = {value}\n'
+        # 使用正则表达式查找并替换配置项
+        import re
+        
+        if isinstance(value, bool):
+            pattern = rf'^{key}\s*=\s*.*$'
+            replacement = f'{key} = {value}'
+        elif isinstance(value, str):
+            pattern = rf'^{key}\s*=\s*.*$'
+            replacement = f'{key} = "{value}"'
+        elif isinstance(value, (int, float)):
+            pattern = rf'^{key}\s*=\s*.*$'
+            replacement = f'{key} = {value}'
+        elif isinstance(value, dict):
+            # 处理字典类型
+            dict_str = '{\n'
+            for k, v in value.items():
+                if isinstance(v, str):
+                    dict_str += f"    '{k}': '{v}',\n"
                 else:
-                    lines[i] = f'{key} = {repr(value)}\n'
-                updated = True
-                break
+                    dict_str += f"    '{k}': {v},\n"
+            dict_str += '}'
+            pattern = rf'^{key}\s*=\s*{{[\s\S]*?^}}'
+            replacement = f'{key} = {dict_str}'
+        else:
+            pattern = rf'^{key}\s*=\s*.*$'
+            replacement = f'{key} = {repr(value)}'
         
-        if not updated:
-            logger.warning(f"未找到配置项 {key}")
+        # 添加调试日志
+        logger.debug(f"查找配置项: {key}")
+        logger.debug(f"使用模式: {pattern}")
+        logger.debug(f"替换为: {replacement}")
+        
+        # 使用多行模式匹配
+        new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+        
+        if new_content == content:
+            # 尝试使用简单的字符串替换
+            lines = content.split('\n')
+            updated = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f'{key} ='):
+                    if isinstance(value, bool):
+                        lines[i] = f'{key} = {value}'
+                    elif isinstance(value, str):
+                        lines[i] = f'{key} = "{value}"'
+                    elif isinstance(value, (int, float)):
+                        lines[i] = f'{key} = {value}'
+                    else:
+                        lines[i] = f'{key} = {repr(value)}'
+                    updated = True
+                    logger.debug(f"使用简单替换更新配置项 {key} 在第 {i+1} 行")
+                    break
+            
+            if updated:
+                new_content = '\n'.join(lines)
+            else:
+                logger.warning(f"未找到配置项 {key}")
+                # 输出配置文件的相关行用于调试
+                for i, line in enumerate(lines):
+                    if key in line:
+                        logger.debug(f"找到包含 {key} 的行 {i+1}: {line}")
+                return False
+        
+        # 验证更新后的配置是否有语法错误
+        try:
+            compile(new_content, config_file, 'exec')
+        except SyntaxError as e:
+            logger.error(f"配置更新后产生语法错误: {e}")
             return False
         
         # 写回配置文件
         with open(config_file, 'w', encoding='utf-8') as f:
-            f.writelines(lines)
+            f.write(new_content)
         
         logger.info(f"配置项 {key} 已更新为 {value}")
         return True
@@ -85,13 +149,25 @@ def update_config_value(key, value):
 def update_auto_monitor_config(enabled, interval, auto_start_enabled):
     """更新自动监控相关配置"""
     try:
+        logger.info(f"开始更新自动监控配置: enabled={enabled}, interval={interval}, auto_start_enabled={auto_start_enabled}")
+        
         # 更新各个配置项
         success = True
+        
+        # 更新ENABLE_AUTO_MONITORING
+        logger.debug("更新ENABLE_AUTO_MONITORING...")
         success &= update_config_value('ENABLE_AUTO_MONITORING', enabled)
+        
+        # 更新DEFAULT_AUTO_MONITOR_INTERVAL
+        logger.debug("更新DEFAULT_AUTO_MONITOR_INTERVAL...")
         success &= update_config_value('DEFAULT_AUTO_MONITOR_INTERVAL', interval)
+        
+        # 更新DEFAULT_AUTO_START_ENABLED
+        logger.debug("更新DEFAULT_AUTO_START_ENABLED...")
         success &= update_config_value('DEFAULT_AUTO_START_ENABLED', auto_start_enabled)
         
         # 更新AUTO_MONITOR_CONFIG字典
+        logger.debug("更新AUTO_MONITOR_CONFIG...")
         auto_monitor_config = {
             'enabled': enabled,
             'interval': interval,
@@ -101,6 +177,7 @@ def update_auto_monitor_config(enabled, interval, auto_start_enabled):
         
         if success:
             # 重新加载配置
+            logger.debug("重新加载配置...")
             reload_config()
             logger.info("自动监控配置更新并重新加载成功")
             return True
@@ -114,11 +191,16 @@ def update_auto_monitor_config(enabled, interval, auto_start_enabled):
 def update_web_refresh_config(enabled, interval):
     """更新Web自动刷新配置"""
     try:
-        success = update_config_value('WEB_AUTO_REFRESH_INTERVAL', interval)
-        if success:
-            reload_config()
+        # 更新启用状态
+        success1 = update_config_value('WEB_AUTO_REFRESH_ENABLED', enabled)
+        # 更新间隔
+        success2 = update_config_value('WEB_AUTO_REFRESH_INTERVAL', interval)
+        
+        if success1 and success2:
             logger.info(f"Web自动刷新配置已更新: 启用={enabled}, 间隔={interval}秒")
             return True
+        else:
+            logger.error(f"Web自动刷新配置更新失败: 启用状态={success1}, 间隔={success2}")
         return False
     except Exception as e:
         logger.error(f"更新Web自动刷新配置失败: {e}")
@@ -126,11 +208,19 @@ def update_web_refresh_config(enabled, interval):
 
 # 配置Flask应用
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'vbox_monitor_secret_key'
+try:
+    from config import SESSION_SECRET_KEY, SESSION_TIMEOUT
+    app.config['SECRET_KEY'] = SESSION_SECRET_KEY
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_TIMEOUT)
+except ImportError:
+    app.config['SECRET_KEY'] = 'vbox_monitor_secret_key'
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
 
 # 导入配置文件
 try:
     from config import *
+    logger = logging.getLogger(__name__)
+    logger.info(f"从配置文件加载设置: WEB_HOST={WEB_HOST}, WEB_PORT={WEB_PORT}")
 except ImportError:
     # 如果配置文件不存在，使用默认配置
     WEB_PORT = 5000
@@ -140,6 +230,8 @@ except ImportError:
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
     VERBOSE_LOGGING = True
+    logger = logging.getLogger(__name__)
+    logger.warning("配置文件不存在，使用默认配置")
 
 # 配置日志
 log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
@@ -161,24 +253,142 @@ if VERBOSE_LOGGING:
 # 全局变量
 monitor = None
 monitoring_status = False
+auto_refresh_enabled = False
+auto_refresh_interval = 30
+auto_refresh_thread = None
+
+def start_auto_refresh(interval):
+    """启动自动刷新"""
+    global auto_refresh_thread, auto_refresh_enabled, auto_refresh_interval
+    
+    # 如果已有线程在运行，先停止
+    if auto_refresh_thread and auto_refresh_thread.is_alive():
+        stop_auto_refresh()
+    
+    auto_refresh_enabled = True
+    auto_refresh_interval = interval
+    
+    def auto_refresh_task():
+        logger.info(f"自动刷新任务已启动，间隔: {interval}秒")
+        logger.info(f"自动刷新状态: 已开启，执行间隔: {interval}秒")
+        
+        while auto_refresh_enabled:
+            try:
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                logger.info(f"[{current_time}] 执行自动刷新...")
+                logger.info(f"自动刷新状态: 正在执行，间隔: {interval}秒")
+                
+                # 执行实际的刷新操作
+                if monitor:
+                    try:
+                        # 重新扫描虚拟机
+                        vm_list = monitor.get_all_vm_status()
+                        logger.info(f"自动刷新完成，扫描到 {len(vm_list)} 个虚拟机")
+                        
+                        # 记录每个虚拟机的状态
+                        for vm in vm_list:
+                            logger.debug(f"虚拟机: {vm['name']}, 状态: {vm['status']}")
+                        
+                    except Exception as e:
+                        logger.error(f"自动刷新扫描虚拟机失败: {e}")
+                else:
+                    logger.warning("监控器未初始化，跳过自动刷新")
+                
+                time.sleep(interval)
+            except Exception as e:
+                logger.error(f"自动刷新任务出错: {e}")
+                time.sleep(interval)
+    
+    auto_refresh_thread = threading.Thread(target=auto_refresh_task, daemon=True)
+    auto_refresh_thread.start()
+    logger.info("自动刷新线程已启动")
+
+def stop_auto_refresh():
+    """停止自动刷新"""
+    global auto_refresh_enabled, auto_refresh_thread
+    
+    auto_refresh_enabled = False
+    if auto_refresh_thread and auto_refresh_thread.is_alive():
+        auto_refresh_thread.join(timeout=5)
+        logger.info("自动刷新线程已停止")
+        logger.info("自动刷新状态: 已关闭")
 
 def init_monitor():
     """初始化监控器"""
-    global monitor
+    global monitor, auto_refresh_enabled, auto_refresh_interval
     try:
         monitor = get_vbox_monitor()
         logger.info("VirtualBox监控器初始化成功")
+        
+        # 加载保存的自动刷新配置
+        try:
+            from config import WEB_AUTO_REFRESH_ENABLED, WEB_AUTO_REFRESH_INTERVAL
+            auto_refresh_enabled = WEB_AUTO_REFRESH_ENABLED
+            auto_refresh_interval = WEB_AUTO_REFRESH_INTERVAL
+            
+            if auto_refresh_enabled:
+                logger.info(f"加载保存的自动刷新配置: 已启用，间隔: {auto_refresh_interval}秒")
+                start_auto_refresh(auto_refresh_interval)
+            else:
+                logger.info("加载保存的自动刷新配置: 已禁用")
+        except ImportError:
+            logger.warning("无法加载自动刷新配置，使用默认值")
+        
         return True
     except Exception as e:
         logger.error(f"初始化监控器失败: {e}")
         return False
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """登录页面"""
+    if request.method == 'POST':
+        try:
+            from config import LOGIN_USERNAME, LOGIN_PASSWORD
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            if username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
+                session['logged_in'] = True
+                session['username'] = username
+                session.permanent = True
+                logger.info(f"用户 {username} 登录成功")
+                return jsonify({
+                    'success': True,
+                    'message': '登录成功'
+                })
+            else:
+                logger.warning(f"登录失败: 用户名={username}")
+                return jsonify({
+                    'success': False,
+                    'message': '用户名或密码错误'
+                })
+        except ImportError:
+            return jsonify({
+                'success': False,
+                'message': '登录配置错误'
+            })
+    
+    return render_template('login.html')
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    """退出登录"""
+    session.clear()
+    logger.info("用户退出登录")
+    return jsonify({
+        'success': True,
+        'message': '退出成功'
+    })
+
 @app.route('/')
+@login_required
 def index():
     """主页"""
     return render_template('index.html')
 
 @app.route('/api/vms')
+@login_required
 def api_get_vms():
     """获取所有虚拟机状态"""
     logger.debug("API调用: /api/vms - 获取所有虚拟机状态")
@@ -213,6 +423,7 @@ def api_get_vms():
         })
 
 @app.route('/api/vm/<vm_name>/start')
+@login_required
 def api_start_vm(vm_name):
     """启动虚拟机"""
     logger.debug(f"API调用: /api/vm/{vm_name}/start - 启动虚拟机")
@@ -243,6 +454,7 @@ def api_start_vm(vm_name):
         })
 
 @app.route('/api/vm/<vm_name>/stop')
+@login_required
 def api_stop_vm(vm_name):
     """停止虚拟机"""
     try:
@@ -266,6 +478,7 @@ def api_stop_vm(vm_name):
         })
 
 @app.route('/api/vm/<vm_name>/info')
+@login_required
 def api_get_vm_info(vm_name):
     """获取虚拟机详细信息"""
     try:
@@ -295,6 +508,7 @@ def api_get_vm_info(vm_name):
         })
 
 @app.route('/api/vm/<vm_name>/restart', methods=['POST'])
+@login_required
 def api_restart_vm(vm_name):
     """强制重启虚拟机"""
     logger.debug(f"API调用: /api/vm/{vm_name}/restart - 强制重启虚拟机")
@@ -331,6 +545,7 @@ def api_restart_vm(vm_name):
 
 
 @app.route('/api/monitor/start')
+@login_required
 def api_start_monitoring():
     """开始监控"""
     global monitoring_status
@@ -357,7 +572,8 @@ def api_start_monitoring():
         monitoring_status = True
         
         auto_start_text = "启用" if auto_start else "禁用"
-        logger.info(f"监控启动成功: 间隔={interval}秒, 自动启动={auto_start_text}")
+        logger.info(f"自动监控启动成功: 间隔={interval}秒, 自动启动={auto_start_text}")
+        logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
         
         return jsonify({
             'success': True,
@@ -373,6 +589,7 @@ def api_start_monitoring():
         })
 
 @app.route('/api/monitor/stop')
+@login_required
 def api_stop_monitoring():
     """停止监控"""
     global monitoring_status
@@ -390,7 +607,8 @@ def api_stop_monitoring():
         monitor.stop_monitoring()
         monitoring_status = False
         
-        logger.info("监控停止成功")
+        logger.info("自动监控停止成功")
+        logger.info("自动监控状态: 已关闭")
         logger.debug("监控状态已更新为停止")
         
         return jsonify({
@@ -406,6 +624,7 @@ def api_stop_monitoring():
         })
 
 @app.route('/api/monitor/status')
+@login_required
 def api_get_monitor_status():
     """获取监控状态"""
     try:
@@ -433,6 +652,7 @@ def api_get_monitor_status():
         })
 
 @app.route('/api/auto_start')
+@login_required
 def api_auto_start_stopped_vms():
     """手动执行自动启动"""
     try:
@@ -457,6 +677,7 @@ def api_auto_start_stopped_vms():
         })
 
 @app.route('/api/scan')
+@login_required
 def api_scan_vms():
     """重新扫描虚拟机"""
     try:
@@ -555,7 +776,12 @@ def api_get_directories():
     """获取当前选中的虚拟机目录"""
     logger.debug("API调用: /api/config/get_directories - 获取选中目录")
     try:
+        # 安全地导入配置
         from config import SELECTED_VM_DIRECTORIES
+    except ImportError as e:
+        logger.error(f"导入SELECTED_VM_DIRECTORIES失败: {e}")
+        # 如果导入失败，使用默认值
+        SELECTED_VM_DIRECTORIES = [r"D:\Users\wx\VirtualBox VMs"]
         
         response_data = {
             'success': True,
@@ -783,11 +1009,23 @@ def api_get_all_exceptions():
         })
 
 @app.route('/api/config/auto_monitor')
+@login_required
 def api_get_auto_monitor_config():
     """获取自动监控配置"""
     logger.debug("API调用: /api/config/auto_monitor - 获取自动监控配置")
     try:
+        # 安全地导入配置
         from config import DEFAULT_AUTO_MONITOR_INTERVAL, DEFAULT_AUTO_START_ENABLED, AUTO_MONITOR_CONFIG
+    except ImportError as e:
+        logger.error(f"导入自动监控配置失败: {e}")
+        # 如果导入失败，使用默认值
+        DEFAULT_AUTO_MONITOR_INTERVAL = 30
+        DEFAULT_AUTO_START_ENABLED = False
+        AUTO_MONITOR_CONFIG = {
+            'enabled': False,
+            'interval': 30,
+            'auto_start_enabled': False
+        }
         
         response_data = {
             'success': True,
@@ -809,6 +1047,7 @@ def api_get_auto_monitor_config():
         })
 
 @app.route('/api/config/auto_monitor', methods=['POST'])
+@login_required
 def api_save_auto_monitor_config():
     """保存自动监控配置"""
     logger.debug("API调用: /api/config/auto_monitor - 保存自动监控配置")
@@ -841,7 +1080,18 @@ def api_save_auto_monitor_config():
                     # 记录新的启动时间
                     start_time = datetime.now().isoformat()
                     monitor.start_monitoring(interval, auto_start_enabled, start_time)
-                    logger.info(f"监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
+                    logger.info(f"自动监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
+                    logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
+                else:
+                    logger.info("自动监控状态: 已关闭")
+            elif enabled:
+                # 如果监控未运行但配置为启用，启动监控
+                start_time = datetime.now().isoformat()
+                monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                logger.info(f"自动监控已启动: 间隔={interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
+                logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
+            else:
+                logger.info("自动监控状态: 已关闭")
             
             response_data = {
                 'success': True,
@@ -863,11 +1113,19 @@ def api_save_auto_monitor_config():
         })
 
 @app.route('/api/config/web_refresh')
+@login_required
 def api_get_web_refresh_config():
     """获取Web自动刷新配置"""
     logger.debug("API调用: /api/config/web_refresh - 获取Web自动刷新配置")
     try:
-        from config import WEB_AUTO_REFRESH_INTERVAL
+        # 安全地导入配置
+        try:
+            from config import WEB_AUTO_REFRESH_INTERVAL, WEB_AUTO_REFRESH_ENABLED
+        except ImportError as e:
+            logger.error(f"导入Web自动刷新配置失败: {e}")
+            # 如果导入失败，使用默认值
+            WEB_AUTO_REFRESH_INTERVAL = 30
+            WEB_AUTO_REFRESH_ENABLED = False
         
         response_data = {
             'success': True,
@@ -875,7 +1133,7 @@ def api_get_web_refresh_config():
                 'default_interval': WEB_AUTO_REFRESH_INTERVAL,
                 'default_enabled': False,
                 'saved_config': {
-                    'enabled': False,
+                    'enabled': WEB_AUTO_REFRESH_ENABLED,
                     'interval': WEB_AUTO_REFRESH_INTERVAL
                 }
             },
@@ -892,6 +1150,7 @@ def api_get_web_refresh_config():
         })
 
 @app.route('/api/config/web_refresh', methods=['POST'])
+@login_required
 def api_update_web_refresh_interval():
     """更新Web自动刷新间隔"""
     logger.debug("API调用: /api/config/web_refresh - 更新Web自动刷新间隔")
@@ -909,9 +1168,32 @@ def api_update_web_refresh_interval():
         logger.info(f"收到Web自动刷新配置更新请求: 启用={enabled}, 间隔={interval}秒")
         
         if update_web_refresh_config(enabled, interval):
+            # 更新全局自动刷新状态
+            global auto_refresh_enabled, auto_refresh_interval
+            auto_refresh_enabled = enabled
+            auto_refresh_interval = interval
+            
+            if enabled:
+                logger.info(f"Web自动刷新已启用，间隔: {interval}秒")
+                logger.info(f"自动刷新状态: 已开启，执行间隔: {interval}秒")
+                # 启动自动刷新
+                start_auto_refresh(interval)
+                status_message = f"自动刷新已启用，间隔: {interval}秒"
+            else:
+                logger.info("Web自动刷新已禁用")
+                logger.info("自动刷新状态: 已关闭")
+                # 停止自动刷新
+                stop_auto_refresh()
+                status_message = "自动刷新已禁用"
+            
             response_data = {
                 'success': True,
-                'message': f'Web自动刷新配置已更新并立即生效',
+                'message': status_message,
+                'data': {
+                    'enabled': enabled,
+                    'interval': interval,
+                    'status': status_message
+                },
                 'timestamp': datetime.now().isoformat()
             }
             logger.debug(f"返回响应: {response_data}")
@@ -926,6 +1208,103 @@ def api_update_web_refresh_interval():
         return jsonify({
             'success': False,
             'message': f'更新Web自动刷新配置失败: {str(e)}'
+        })
+
+@app.route('/api/config/auto_refresh/status')
+def api_get_auto_refresh_status():
+    """获取自动刷新状态"""
+    logger.debug("API调用: /api/config/auto_refresh/status - 获取自动刷新状态")
+    try:
+        return jsonify({
+            'success': True,
+            'data': {
+                'enabled': auto_refresh_enabled,
+                'interval': auto_refresh_interval,
+                'thread_alive': auto_refresh_thread.is_alive() if auto_refresh_thread else False
+            },
+            'message': '获取自动刷新状态成功',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"获取自动刷新状态失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取自动刷新状态失败: {str(e)}'
+        })
+
+@app.route('/api/config/web_server')
+def api_get_web_server_config():
+    """获取Web服务器配置"""
+    logger.debug("API调用: /api/config/web_server - 获取Web服务器配置")
+    try:
+        return jsonify({
+            'success': True,
+            'data': {
+                'host': WEB_HOST,
+                'port': WEB_PORT,
+                'url': f"http://{WEB_HOST}:{WEB_PORT}"
+            },
+            'message': '获取Web服务器配置成功',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"获取Web服务器配置失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取Web服务器配置失败: {str(e)}'
+        })
+
+@app.route('/api/config/web_server', methods=['POST'])
+def api_update_web_server_config():
+    """更新Web服务器配置"""
+    logger.debug("API调用: /api/config/web_server - 更新Web服务器配置")
+    try:
+        data = request.get_json()
+        if not data:
+            logger.warning("缺少配置数据")
+            return jsonify({
+                'success': False,
+                'message': '缺少配置数据'
+            })
+        
+        new_host = data.get('host', WEB_HOST)
+        new_port = data.get('port', WEB_PORT)
+        
+        logger.info(f"收到Web服务器配置更新请求: host={new_host}, port={new_port}")
+        
+        # 更新配置文件
+        success1 = update_config_value('WEB_HOST', new_host)
+        success2 = update_config_value('WEB_PORT', new_port)
+        
+        if success1 and success2:
+            # 重新加载配置
+            reload_config()
+            
+            logger.info(f"Web服务器配置已更新: host={new_host}, port={new_port}")
+            logger.warning("端口配置已更新，需要重启Web服务才能生效")
+            
+            response_data = {
+                'success': True,
+                'message': f'Web服务器配置已更新: {new_host}:{new_port}，需要重启服务生效',
+                'data': {
+                    'host': new_host,
+                    'port': new_port,
+                    'url': f"http://{new_host}:{new_port}"
+                },
+                'timestamp': datetime.now().isoformat()
+            }
+            logger.debug(f"返回响应: {response_data}")
+            return jsonify(response_data)
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Web服务器配置更新失败'
+            })
+    except Exception as e:
+        logger.error(f"更新Web服务器配置失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'更新Web服务器配置失败: {str(e)}'
         })
 
 @app.route('/api/monitor/last_results')
@@ -1048,6 +1427,8 @@ if not init_monitor():
 
 if __name__ == '__main__':
     print("VirtualBox监控Web应用启动中...")
+    print(f"配置文件端口: {WEB_PORT}")
+    print(f"配置文件主机: {WEB_HOST}")
     print(f"访问地址: http://{WEB_HOST}:{WEB_PORT}")
     
     # 启动Flask应用

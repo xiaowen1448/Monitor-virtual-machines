@@ -48,7 +48,6 @@ except ImportError:
     ]
     AUTO_DETECT_VBOXMANAGE = True
     VBOX_START_TYPE = "headless"
-    MONITOR_INTERVAL = 60
     LOG_LEVEL = "INFO"
     LOG_FILE = "vbox_monitor.log"
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
@@ -126,13 +125,11 @@ class VirtualBoxMonitor:
         logger.info(f"VirtualBox监控器初始化完成")
         logger.info(f"虚拟机目录: {self.vbox_dir}")
         logger.info(f"VBoxManage路径: {self.vboxmanage_path}")
-        logger.info(f"监控间隔: {MONITOR_INTERVAL}秒")
         
         # 监控日志记录
         monitor_logger.info(f"VirtualBox监控器初始化完成")
         monitor_logger.info(f"虚拟机目录: {self.vbox_dir}")
         monitor_logger.info(f"VBoxManage路径: {self.vboxmanage_path}")
-        monitor_logger.info(f"监控间隔: {MONITOR_INTERVAL}秒")
         logger.info(f"日志级别: {LOG_LEVEL}")
         logger.info(f"启动类型: {VBOX_START_TYPE}")
     
@@ -782,9 +779,10 @@ class VirtualBoxMonitor:
         self.last_monitor_results = []
         self.monitor_start_time = start_time or datetime.now().isoformat()
         
-        logger.info(f"开始监控虚拟机，间隔: {interval}秒，自动启动: {auto_start}")
-        monitor_logger.info(f"开始监控虚拟机，间隔: {interval}秒，自动启动: {auto_start}")
-        monitor_logger.info(f"监控启动时间: {self.monitor_start_time}")
+        logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
+        monitor_logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
+        monitor_logger.info(f"自动监控启动时间: {self.monitor_start_time}")
+        monitor_logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
         
         def monitor_task():
             # 计算第一次执行的时间
@@ -802,8 +800,12 @@ class VirtualBoxMonitor:
             
             while self.monitoring:
                 try:
-                    logger.info("执行监控检查...")
-                    monitor_logger.info("执行监控检查...")
+                    # 记录本次执行开始时间
+                    execution_start_time = time.time()
+                    
+                    logger.info("执行自动监控检查...")
+                    monitor_logger.info("执行自动监控检查...")
+                    monitor_logger.info(f"自动监控状态: 正在执行，间隔: {interval}秒")
                     
                     # 获取所有虚拟机状态
                     vm_status_list = self.get_all_vm_status()
@@ -865,7 +867,17 @@ class VirtualBoxMonitor:
                     monitor_logger.error(f"监控任务出错: {e}")
                     self.last_monitor_results = []
                 
-                time.sleep(interval)
+                # 计算本次执行耗时
+                execution_time = time.time() - execution_start_time
+                monitor_logger.debug(f"本次监控执行耗时: {execution_time:.2f}秒")
+                
+                # 计算需要等待的时间，确保严格按照间隔执行
+                wait_time = max(0, interval - execution_time)
+                if wait_time > 0:
+                    monitor_logger.debug(f"自动监控等待 {wait_time:.2f} 秒后执行下次检查")
+                    time.sleep(wait_time)
+                else:
+                    monitor_logger.warning(f"自动监控执行时间 ({execution_time:.2f}秒) 超过了设定间隔 ({interval}秒)，立即执行下次检查")
         
         self.monitor_thread = threading.Thread(target=monitor_task, daemon=MONITOR_THREAD_DAEMON)
         self.monitor_thread.start()
@@ -876,8 +888,9 @@ class VirtualBoxMonitor:
             return
         
         self.monitoring = False
-        logger.info("停止虚拟机监控")
-        monitor_logger.info("停止虚拟机监控")
+        logger.info("自动监控已停止")
+        monitor_logger.info("自动监控已停止")
+        monitor_logger.info("自动监控状态: 已关闭")
         
         if self.monitor_thread:
             self.monitor_thread.join(timeout=5)
