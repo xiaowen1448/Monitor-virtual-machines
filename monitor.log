@@ -384,3 +384,8 @@
 2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本111 启动失败
 2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本3333 启动失败
 2025-08-03 15:31:11,177 - WARNING - [MONITOR] - monitor - 虚拟机 win10 副本44444 启动失败
+2025-08-03 15:43:11,444 - DEBUG - monitor - 监控日志系统初始化完成
+2025-08-03 15:43:11,462 - INFO - monitor - VirtualBox监控器初始化完成
+2025-08-03 15:43:11,462 - INFO - monitor - 虚拟机目录: D:\Users\wx\VirtualBox VMs
+2025-08-03 15:43:11,462 - INFO - monitor - VBoxManage路径: C:\Program Files\Oracle\VirtualBox\VBoxManage.exe
+2025-08-03 15:43:11,462 - INFO - monitor - 监控间隔: 60秒

@@ -29,6 +29,21 @@ LOG_FILE = "vbox_monitor.log"
 # Web日志文件路径
 WEB_LOG_FILE = "vbox_web.log"
 
+# 监控日志文件路径
+MONITOR_LOG_FILE = "monitor.log"
+
+# 监控日志级别
+MONITOR_LOG_LEVEL = "DEBUG"
+
+# 监控日志格式
+MONITOR_LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+
+# 监控日志编码
+MONITOR_LOG_ENCODING = "utf-8"
+
+# 监控详细日志
+MONITOR_VERBOSE_LOGGING = True
+
 # 日志格式
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 
