@@ -617,6 +617,16 @@ def api_start_monitoring():
         logger.info(f"启动监控: 间隔={interval}秒, 自动启动={auto_start}")
         logger.debug(f"监控启动请求参数: interval={interval}, auto_start={auto_start}, start_time={start_time}")
         
+        # 添加详细的调试信息
+        logger.info(f"=== 监控启动详细调试信息 ===")
+        logger.info(f"原始请求参数: {dict(request.args)}")
+        logger.info(f"原始auto_start参数值: '{request.args.get('auto_start', 'true')}'")
+        logger.info(f"解析后的间隔: {interval}秒 (类型: {type(interval)})")
+        logger.info(f"解析后的自动启动: {auto_start} (类型: {type(auto_start)})")
+        logger.info(f"启动时间: {start_time}")
+        logger.info(f"auto_start参数解析过程: '{request.args.get('auto_start', 'true')}' -> {auto_start}")
+        logger.info(f"监控策略: 每{interval}秒检查所有虚拟机，{'自动启动已关机的虚拟机' if auto_start else '仅监控状态'}")
+        
         # 记录启动时间
         if start_time:
             logger.info(f"监控启动时间: {start_time}")

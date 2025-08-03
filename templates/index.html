@@ -39,29 +39,68 @@
         
         /* 虚拟机列表容器样式 */
         .vm-list-container {
-            height: 100%;
+            height: 700px; /* 增加高度，确保7个虚拟机能够完全显示 */
             overflow-y: auto;
             overflow-x: hidden;
             padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #f8f9fa;
+        }
+        
+        /* 响应式高度调整 */
+        @media (max-height: 800px) {
+            .vm-list-container {
+                height: 600px;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .vm-list-container {
+                height: 500px;
+            }
         }
         
         /* 虚拟机列表滚动条样式 */
         .vm-list-container::-webkit-scrollbar {
-            width: 8px;
+            width: 12px;
         }
         
         .vm-list-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin: 2px;
+            border: 1px solid #e9ecef;
         }
         
         .vm-list-container::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
+            background: linear-gradient(180deg, #6c757d 0%, #495057 100%);
+            border-radius: 6px;
+            border: 1px solid #f8f9fa;
+            min-height: 40px;
         }
         
         .vm-list-container::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+            background: linear-gradient(180deg, #495057 0%, #343a40 100%);
+        }
+        
+        .vm-list-container::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(180deg, #343a40 0%, #212529 100%);
+        }
+        
+        /* Firefox 滚动条样式 */
+        .vm-list-container {
+            scrollbar-width: thin;
+            scrollbar-color: #6c757d #f8f9fa;
+        }
+        
+        /* 滚动提示样式 */
+        #scrollHint {
+            position: sticky;
+            bottom: 0;
+            background: linear-gradient(180deg, transparent 0%, #f8f9fa 50%);
+            border-top: 1px solid #dee2e6;
+            z-index: 10;
         }
         
         /* 确保页面整体高度固定 */
@@ -96,11 +135,39 @@
         /* 确保虚拟机卡片在滚动容器中正常显示 */
         .vm-list-container .row {
             margin: 0;
+            min-height: 100%;
         }
         
         .vm-list-container .col-md-6,
         .vm-list-container .col-lg-4 {
             padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* 虚拟机卡片在滚动容器中的样式优化 */
+        .vm-list-container .vm-card {
+            height: auto;
+            min-height: 120px;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* 优化虚拟机卡片内容布局 */
+        .vm-list-container .vm-card .card-body {
+            padding: 0.75rem;
+        }
+        
+        .vm-list-container .vm-card .card-header {
+            padding: 0.5rem 0.75rem;
+        }
+        
+        /* 空状态和加载状态的样式 */
+        .vm-list-container #noVmsMessage,
+        .vm-list-container #loadingMessage {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         
         /* 启动失败虚拟机样式 */
@@ -382,7 +449,7 @@
                         <h5 class="mb-0"><i class="fas fa-list me-2"></i>虚拟机列表</h5>
                     </div>
                     <div class="card-body">
-                        <div class="vm-list-container">
+                        <div class="vm-list-container" id="vmListContainer">
                             <div id="vmList" class="row">
                                 <!-- 虚拟机卡片将在这里动态生成 -->
                             </div>
@@ -396,6 +463,10 @@
                                     <span class="visually-hidden">加载中...</span>
                                 </div>
                                 <p class="mt-2">正在加载虚拟机信息...</p>
+                            </div>
+                            <!-- 滚动提示 -->
+                            <div id="scrollHint" class="text-center text-muted py-2" style="display: none; font-size: 0.8rem;">
+                                <i class="fas fa-chevron-down me-1"></i>向下滚动查看更多虚拟机
                             </div>
                         </div>
                     </div>
@@ -504,6 +575,10 @@
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('页面加载完成，开始初始化...');
+            
+            // 调整虚拟机列表容器高度
+            adjustVMListContainerHeight();
+            
             loadVMs();
             loadMonitorStatus();
             loadVboxDirConfig();
@@ -520,6 +595,36 @@
                 await checkAndUpdateConfigs();
                 console.log('首次配置检查完成');
             }, 2000);
+        });
+        
+        // 调整虚拟机列表容器高度
+        function adjustVMListContainerHeight() {
+            const container = document.querySelector('.vm-list-container');
+            if (container) {
+                const windowHeight = window.innerHeight;
+                const headerHeight = document.querySelector('.bg-primary')?.offsetHeight || 80;
+                const controlPanelHeight = document.querySelector('.row.mt-3:first-of-type')?.offsetHeight || 120;
+                const footerHeight = 20; // 预留底部空间
+                
+                const availableHeight = windowHeight - headerHeight - controlPanelHeight - footerHeight;
+                const minHeight = 600; // 增加最小高度
+                const maxHeight = 900; // 增加最大高度
+                
+                const newHeight = Math.max(minHeight, Math.min(maxHeight, availableHeight));
+                
+                container.style.height = `${newHeight}px`;
+                console.log(`调整虚拟机列表容器高度: ${newHeight}px (窗口高度: ${windowHeight}px)`);
+                
+                // 强制触发滚动条检查
+                setTimeout(() => {
+                    checkScrollHint();
+                }, 100);
+            }
+        }
+        
+        // 窗口大小改变时重新调整高度
+        window.addEventListener('resize', function() {
+            adjustVMListContainerHeight();
         });
 
         // 设置事件监听器
@@ -698,10 +803,24 @@
                     // 如果监控正在运行，重新启动监控以应用新设置
                     const autoStart = document.getElementById('autoStartToggle').checked;
                     console.log('自动监控已启用，立即应用新间隔设置');
+                    console.log(`重新启动监控: 间隔=${interval}秒, 自动启动=${autoStart}`);
+                    console.log(`监控设置: 对所有虚拟机进行监控，已关机则进行开机操作`);
+                    
+                    // 显示用户友好的提示
+                    const modeText = autoStart ? '自动启动模式' : '状态监控模式';
+                    showAlert('info', `正在重新启动监控，间隔${interval}秒，${modeText}`);
+                    
+                    console.log(`准备重新启动监控，参数: interval=${interval}, autoStart=${autoStart}`);
                     startMonitoring(interval, autoStart);
                     
                     // 更新监控结果检查间隔
                     updateMonitorResultsCheckInterval();
+                    
+                    // 延迟检查监控状态
+                    setTimeout(() => {
+                        console.log('延迟检查监控状态...');
+                        loadMonitorStatus();
+                    }, 2000);
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -731,10 +850,18 @@
                     const interval = document.getElementById('monitorInterval').value;
                     const autoStart = enabled;
                     console.log('自动监控已启用，立即应用新设置');
+                    console.log(`重新启动监控: 间隔=${interval}秒, 自动启动=${autoStart}`);
+                    console.log(`准备重新启动监控，参数: interval=${interval}, autoStart=${autoStart}`);
                     startMonitoring(interval, autoStart);
                     
                     // 更新监控结果检查间隔
                     updateMonitorResultsCheckInterval();
+                    
+                    // 延迟检查监控状态
+                    setTimeout(() => {
+                        console.log('延迟检查监控状态...');
+                        loadMonitorStatus();
+                    }, 2000);
                 } else {
                     // 如果监控未启用，只更新显示，不保存配置
                     console.log('自动监控未启用，仅更新显示，不保存配置');
@@ -868,6 +995,33 @@
             noVmsMessage.style.display = 'none';
             
             vmListContainer.innerHTML = vms.map(vm => createVMCard(vm)).join('');
+            
+            // 检查是否需要显示滚动提示
+            setTimeout(() => {
+                checkScrollHint();
+                console.log(`虚拟机列表更新完成，共 ${vms.length} 个虚拟机`);
+            }, 100);
+        }
+        
+        // 检查滚动提示
+        function checkScrollHint() {
+            const container = document.getElementById('vmListContainer');
+            const scrollHint = document.getElementById('scrollHint');
+            
+            if (container && scrollHint) {
+                const hasScrollbar = container.scrollHeight > container.clientHeight;
+                const vmCount = document.querySelectorAll('.vm-card').length;
+                
+                console.log(`滚动检查: 容器高度=${container.clientHeight}px, 内容高度=${container.scrollHeight}px, 虚拟机数量=${vmCount}`);
+                
+                if (hasScrollbar) {
+                    scrollHint.style.display = 'block';
+                    console.log('检测到滚动条，显示滚动提示');
+                } else {
+                    scrollHint.style.display = 'none';
+                    console.log('无滚动条，隐藏滚动提示');
+                }
+            }
         }
 
         // 创建虚拟机卡片
@@ -1419,7 +1573,16 @@
                 
                 console.debug('参数验证后:', { interval, autoStart, startTime });
                 
-                const url = `/api/monitor/start?interval=${interval}&auto_start=${autoStart}&start_time=${encodeURIComponent(startTime)}`;
+                // 添加详细的调试信息
+                console.log(`=== 监控启动调试信息 ===`);
+                console.log(`间隔时间: ${interval}秒`);
+                console.log(`自动启动: ${autoStart}`);
+                console.log(`启动时间: ${startTime}`);
+                console.log(`参数类型检查: interval=${typeof interval}, autoStart=${typeof autoStart}`);
+                console.log(`监控模式: ${autoStart ? '自动启动模式' : '状态监控模式'}`);
+                console.log(`执行策略: 每${interval}秒检查所有虚拟机，${autoStart ? '自动启动已关机的虚拟机' : '仅监控状态'}`);
+                
+                const url = `/api/monitor/start?interval=${interval}&auto_start=${autoStart ? 'true' : 'false'}&start_time=${encodeURIComponent(startTime)}`;
                 console.debug('请求URL:', url);
                 
                 const response = await fetch(url);
