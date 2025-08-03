@@ -154,26 +154,17 @@ def update_auto_monitor_config(enabled, interval, auto_start_enabled):
         # 更新各个配置项
         success = True
         
-        # 更新ENABLE_AUTO_MONITORING
-        logger.debug("更新ENABLE_AUTO_MONITORING...")
-        success &= update_config_value('ENABLE_AUTO_MONITORING', enabled)
+        # 更新AUTO_MONITOR_BUTTON_ENABLED
+        logger.debug("更新AUTO_MONITOR_BUTTON_ENABLED...")
+        success &= update_config_value('AUTO_MONITOR_BUTTON_ENABLED', enabled)
         
-        # 更新DEFAULT_AUTO_MONITOR_INTERVAL
-        logger.debug("更新DEFAULT_AUTO_MONITOR_INTERVAL...")
-        success &= update_config_value('DEFAULT_AUTO_MONITOR_INTERVAL', interval)
+        # 更新AUTO_MONITOR_INTERVAL_VALUE
+        logger.debug("更新AUTO_MONITOR_INTERVAL_VALUE...")
+        success &= update_config_value('AUTO_MONITOR_INTERVAL_VALUE', interval)
         
-        # 更新DEFAULT_AUTO_START_ENABLED
-        logger.debug("更新DEFAULT_AUTO_START_ENABLED...")
-        success &= update_config_value('DEFAULT_AUTO_START_ENABLED', auto_start_enabled)
-        
-        # 更新AUTO_MONITOR_CONFIG字典
-        logger.debug("更新AUTO_MONITOR_CONFIG...")
-        auto_monitor_config = {
-            'enabled': enabled,
-            'interval': interval,
-            'auto_start_enabled': auto_start_enabled
-        }
-        success &= update_config_value('AUTO_MONITOR_CONFIG', auto_monitor_config)
+        # 更新AUTO_START_VM_BUTTON_ENABLED
+        logger.debug("更新AUTO_START_VM_BUTTON_ENABLED...")
+        success &= update_config_value('AUTO_START_VM_BUTTON_ENABLED', auto_start_enabled)
         
         if success:
             # 重新加载配置
@@ -192,9 +183,9 @@ def update_web_refresh_config(enabled, interval):
     """更新Web自动刷新配置"""
     try:
         # 更新启用状态
-        success1 = update_config_value('WEB_AUTO_REFRESH_ENABLED', enabled)
+        success1 = update_config_value('AUTO_REFRESH_BUTTON_ENABLED', enabled)
         # 更新间隔
-        success2 = update_config_value('WEB_AUTO_REFRESH_INTERVAL', interval)
+        success2 = update_config_value('AUTO_REFRESH_INTERVAL_VALUE', interval)
         
         if success1 and success2:
             logger.info(f"Web自动刷新配置已更新: 启用={enabled}, 间隔={interval}秒")
@@ -322,9 +313,9 @@ def init_monitor():
         
         # 加载保存的自动刷新配置
         try:
-            from config import WEB_AUTO_REFRESH_ENABLED, WEB_AUTO_REFRESH_INTERVAL
-            auto_refresh_enabled = WEB_AUTO_REFRESH_ENABLED
-            auto_refresh_interval = WEB_AUTO_REFRESH_INTERVAL
+            from config import AUTO_REFRESH_BUTTON_ENABLED, AUTO_REFRESH_INTERVAL_VALUE
+            auto_refresh_enabled = AUTO_REFRESH_BUTTON_ENABLED
+            auto_refresh_interval = AUTO_REFRESH_INTERVAL_VALUE
             
             if auto_refresh_enabled:
                 logger.info(f"加载保存的自动刷新配置: 已启用，间隔: {auto_refresh_interval}秒")
@@ -1015,24 +1006,45 @@ def api_get_auto_monitor_config():
     logger.debug("API调用: /api/config/auto_monitor - 获取自动监控配置")
     try:
         # 安全地导入配置
-        from config import DEFAULT_AUTO_MONITOR_INTERVAL, DEFAULT_AUTO_START_ENABLED, AUTO_MONITOR_CONFIG
-    except ImportError as e:
-        logger.error(f"导入自动监控配置失败: {e}")
-        # 如果导入失败，使用默认值
-        DEFAULT_AUTO_MONITOR_INTERVAL = 30
-        DEFAULT_AUTO_START_ENABLED = False
-        AUTO_MONITOR_CONFIG = {
-            'enabled': False,
-            'interval': 30,
-            'auto_start_enabled': False
-        }
+        from config import (
+            AUTO_MONITOR_BUTTON_ENABLED,
+            AUTO_MONITOR_INTERVAL_VALUE,
+            AUTO_START_VM_BUTTON_ENABLED
+        )
+        
+        # 打印调试信息
+        logger.info("=== 自动监控配置调试信息 ===")
+        logger.info(f"AUTO_MONITOR_BUTTON_ENABLED: {AUTO_MONITOR_BUTTON_ENABLED}")
+        logger.info(f"AUTO_MONITOR_INTERVAL_VALUE: {AUTO_MONITOR_INTERVAL_VALUE}")
+        logger.info(f"AUTO_START_VM_BUTTON_ENABLED: {AUTO_START_VM_BUTTON_ENABLED}")
+        logger.info("================================")
         
         response_data = {
             'success': True,
             'data': {
-                'default_interval': DEFAULT_AUTO_MONITOR_INTERVAL,
-                'default_auto_start_enabled': DEFAULT_AUTO_START_ENABLED,
-                'saved_config': AUTO_MONITOR_CONFIG
+                'button_enabled': AUTO_MONITOR_BUTTON_ENABLED,
+                'interval_value': AUTO_MONITOR_INTERVAL_VALUE,
+                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED
+            },
+            'message': '获取自动监控配置成功',
+            'timestamp': datetime.now().isoformat()
+        }
+        logger.debug(f"返回响应: {response_data}")
+        return jsonify(response_data)
+        
+    except ImportError as e:
+        logger.error(f"导入自动监控配置失败: {e}")
+        # 如果导入失败，使用默认值
+        AUTO_MONITOR_BUTTON_ENABLED = False
+        AUTO_MONITOR_INTERVAL_VALUE = 30
+        AUTO_START_VM_BUTTON_ENABLED = False
+        
+        response_data = {
+            'success': True,
+            'data': {
+                'button_enabled': AUTO_MONITOR_BUTTON_ENABLED,
+                'interval_value': AUTO_MONITOR_INTERVAL_VALUE,
+                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED
             },
             'message': '获取自动监控配置成功',
             'timestamp': datetime.now().isoformat()
@@ -1120,22 +1132,35 @@ def api_get_web_refresh_config():
     try:
         # 安全地导入配置
         try:
-            from config import WEB_AUTO_REFRESH_INTERVAL, WEB_AUTO_REFRESH_ENABLED
+            from config import (
+                AUTO_REFRESH_BUTTON_ENABLED,
+                AUTO_REFRESH_INTERVAL_VALUE
+            )
+            
+            # 打印调试信息
+            logger.info("=== Web自动刷新配置调试信息 ===")
+            logger.info(f"AUTO_REFRESH_BUTTON_ENABLED: {AUTO_REFRESH_BUTTON_ENABLED}")
+            logger.info(f"AUTO_REFRESH_INTERVAL_VALUE: {AUTO_REFRESH_INTERVAL_VALUE}")
+            logger.info("=====================================")
+            
         except ImportError as e:
             logger.error(f"导入Web自动刷新配置失败: {e}")
             # 如果导入失败，使用默认值
-            WEB_AUTO_REFRESH_INTERVAL = 30
-            WEB_AUTO_REFRESH_ENABLED = False
+            AUTO_REFRESH_BUTTON_ENABLED = False
+            AUTO_REFRESH_INTERVAL_VALUE = 30
+            
+            logger.info("=== 使用默认值 ===")
+            logger.info(f"AUTO_REFRESH_BUTTON_ENABLED: {AUTO_REFRESH_BUTTON_ENABLED}")
+            logger.info(f"AUTO_REFRESH_INTERVAL_VALUE: {AUTO_REFRESH_INTERVAL_VALUE}")
+            logger.info("==================")
         
         response_data = {
             'success': True,
             'data': {
-                'default_interval': WEB_AUTO_REFRESH_INTERVAL,
-                'default_enabled': False,
-                'saved_config': {
-                    'enabled': WEB_AUTO_REFRESH_ENABLED,
-                    'interval': WEB_AUTO_REFRESH_INTERVAL
-                }
+                'default_interval': AUTO_REFRESH_INTERVAL_VALUE,
+                'web_auto_refresh_enabled': AUTO_REFRESH_BUTTON_ENABLED,
+                'button_enabled': AUTO_REFRESH_BUTTON_ENABLED,
+                'interval_value': AUTO_REFRESH_INTERVAL_VALUE
             },
             'message': '获取Web自动刷新配置成功',
             'timestamp': datetime.now().isoformat()
@@ -1152,8 +1177,8 @@ def api_get_web_refresh_config():
 @app.route('/api/config/web_refresh', methods=['POST'])
 @login_required
 def api_update_web_refresh_interval():
-    """更新Web自动刷新间隔"""
-    logger.debug("API调用: /api/config/web_refresh - 更新Web自动刷新间隔")
+    """更新Web自动刷新配置"""
+    logger.debug("API调用: /api/config/web_refresh - 更新Web自动刷新配置")
     try:
         data = request.get_json()
         if not data:
@@ -1167,7 +1192,13 @@ def api_update_web_refresh_interval():
         interval = data.get('interval', 30)
         logger.info(f"收到Web自动刷新配置更新请求: 启用={enabled}, 间隔={interval}秒")
         
-        if update_web_refresh_config(enabled, interval):
+        # 直接更新配置文件中的AUTO_REFRESH_BUTTON_ENABLED
+        success1 = update_config_value('AUTO_REFRESH_BUTTON_ENABLED', enabled)
+        
+        # 直接更新配置文件中的AUTO_REFRESH_INTERVAL_VALUE
+        success2 = update_config_value('AUTO_REFRESH_INTERVAL_VALUE', interval)
+        
+        if success1 and success2:
             # 更新全局自动刷新状态
             global auto_refresh_enabled, auto_refresh_interval
             auto_refresh_enabled = enabled
@@ -1305,6 +1336,59 @@ def api_update_web_server_config():
         return jsonify({
             'success': False,
             'message': f'更新Web服务器配置失败: {str(e)}'
+        })
+
+@app.route('/api/config/update_parameter', methods=['POST'])
+@login_required
+def api_update_config_parameter():
+    """更新单个配置参数"""
+    logger.debug("API调用: /api/config/update_parameter - 更新配置参数")
+    try:
+        data = request.get_json()
+        if not data:
+            logger.warning("缺少配置数据")
+            return jsonify({
+                'success': False,
+                'message': '缺少配置数据'
+            })
+        
+        parameter_name = data.get('parameter')
+        value = data.get('value')
+        
+        if parameter_name is None or value is None:
+            logger.warning("缺少参数名或值")
+            return jsonify({
+                'success': False,
+                'message': '缺少参数名或值'
+            })
+        
+        logger.info(f"收到配置参数更新请求: {parameter_name} = {value}")
+        
+        # 使用update_config_value函数更新配置文件
+        if update_config_value(parameter_name, value):
+            logger.info(f"配置参数 {parameter_name} 更新成功")
+            response_data = {
+                'success': True,
+                'message': f'配置参数 {parameter_name} 更新成功',
+                'data': {
+                    'parameter': parameter_name,
+                    'value': value
+                },
+                'timestamp': datetime.now().isoformat()
+            }
+            logger.debug(f"返回响应: {response_data}")
+            return jsonify(response_data)
+        else:
+            logger.error(f"配置参数 {parameter_name} 更新失败")
+            return jsonify({
+                'success': False,
+                'message': f'配置参数 {parameter_name} 更新失败'
+            })
+    except Exception as e:
+        logger.error(f"更新配置参数失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'更新配置参数失败: {str(e)}'
         })
 
 @app.route('/api/monitor/last_results')

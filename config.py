@@ -21,10 +21,6 @@ WEB_HOST = "0.0.0.0"
 
 # 日志级别
 LOG_LEVEL = "DEBUG"
-
-# 自动启动已停止的虚拟机
-AUTO_START_STOPPED_VMS = True
-
 # 日志文件路径
 LOG_FILE = "vbox_monitor.log"
 
@@ -87,12 +83,6 @@ AUTO_SCAN_ON_START = True
 
 # 是否在监控时显示详细状态
 SHOW_DETAILED_STATUS = True
-
-# Web界面自动刷新间隔（秒）
-WEB_AUTO_REFRESH_INTERVAL = 60
-
-# Web界面自动刷新启用状态
-WEB_AUTO_REFRESH_ENABLED = True
 
 # 监控线程是否为守护线程
 MONITOR_THREAD_DAEMON = True
@@ -214,21 +204,20 @@ MONITOR_STATUS_INDICATOR_COLORS = {
     'error': 'danger'
 }
 
-# 自动监控配置
-ENABLE_AUTO_MONITORING = False
+# 自动刷新按钮开启状态（对应页面上的自动刷新开关）
+AUTO_REFRESH_BUTTON_ENABLED = False
 
-# 默认自动监控间隔（秒）
-DEFAULT_AUTO_MONITOR_INTERVAL = 30
+# 自动刷新下拉时间数值（对应页面上的时间选择器）
+AUTO_REFRESH_INTERVAL_VALUE = 60
 
-# 是否默认启用自动启动未运行的虚拟机
-DEFAULT_AUTO_START_ENABLED = False
+# 自动监控按钮开启状态（对应页面上的自动监控开关）
+AUTO_MONITOR_BUTTON_ENABLED = False
 
-# 自动监控配置保存
-AUTO_MONITOR_CONFIG = {
-    'enabled': False,
-    'interval': 30,
-    'auto_start_enabled': False,
-} 
+# 自动监控下拉时间数值（对应页面上的监控时间选择器）
+AUTO_MONITOR_INTERVAL_VALUE = 30
+
+# 自启动虚拟机按钮开启状态（对应页面上的自启动开关）
+AUTO_START_VM_BUTTON_ENABLED = False
 
 
 
