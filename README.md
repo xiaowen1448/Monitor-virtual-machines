@@ -1,5 +1,8 @@
 # VirtualBox虚拟机监控系统
 
+<img width="1841" height="972" alt="image" src="https://github.com/user-attachments/assets/a681b4a0-7b1d-43d0-ac0f-e4c02abef97a" />
+
+
 一个基于Web的VirtualBox虚拟机监控和管理系统，可以自动扫描虚拟机、监控状态、自动启动已停止的虚拟机。
 
 ## 功能特性
