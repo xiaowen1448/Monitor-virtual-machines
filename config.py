@@ -209,13 +209,13 @@ AUTO_REFRESH_BUTTON_ENABLED = False
 AUTO_REFRESH_INTERVAL_VALUE = 600
 
 # 自动监控按钮开启状态（对应页面上的自动监控开关）
-AUTO_MONITOR_BUTTON_ENABLED = False
+AUTO_MONITOR_BUTTON_ENABLED = True
 
 # 自动监控下拉时间数值（对应页面上的监控时间选择器）
 AUTO_MONITOR_INTERVAL_VALUE = 30
 
 # 自启动虚拟机按钮开启状态（对应页面上的自启动开关）
-AUTO_START_VM_BUTTON_ENABLED = False
+AUTO_START_VM_BUTTON_ENABLED = True
 
 # 是否启用自动启动已停止的虚拟机功能
 AUTO_START_STOPPED_VMS = True

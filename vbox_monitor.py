@@ -61,14 +61,13 @@ except ImportError:
     AUTO_START_STOPPED_VMS = True
     MONITOR_THREAD_DAEMON = True
 
-# 配置主日志
+# 配置主日志 - 只写入文件，控制台不输出
 log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
 logging.basicConfig(
     level=log_level,
     format=LOG_FORMAT,
     handlers=[
-        logging.FileHandler(LOG_FILE, encoding=LOG_ENCODING),
-        logging.StreamHandler()
+        logging.FileHandler(LOG_FILE, encoding=LOG_ENCODING)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -78,7 +77,7 @@ try:
     from config import MONITOR_LOG_FILE, MONITOR_LOG_LEVEL, MONITOR_LOG_FORMAT, MONITOR_LOG_ENCODING, MONITOR_VERBOSE_LOGGING
     monitor_log_level = getattr(logging, MONITOR_LOG_LEVEL.upper(), logging.DEBUG)
     
-    # 创建监控日志处理器
+    # 创建监控日志处理器 - 只写入文件
     monitor_handler = logging.FileHandler(MONITOR_LOG_FILE, encoding=MONITOR_LOG_ENCODING)
     monitor_handler.setLevel(monitor_log_level)
     
@@ -95,7 +94,23 @@ try:
     if MONITOR_VERBOSE_LOGGING:
         monitor_logger.setLevel(logging.DEBUG)
         monitor_logger.debug("监控日志系统初始化完成")
-        
+    
+    # 创建控制台日志记录器 - 只记录前台页面操作
+    console_logger = logging.getLogger('console')
+    console_logger.setLevel(logging.INFO)
+    
+    # 创建控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # 创建控制台格式化器
+    console_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    console_handler.setFormatter(console_formatter)
+    
+    # 添加控制台处理器
+    console_logger.addHandler(console_handler)
+    console_logger.propagate = False
+    
 except ImportError:
     # 如果监控日志配置不存在，使用默认配置
     monitor_logger = logger
@@ -141,8 +156,7 @@ class VirtualBoxMonitor:
         logger.info(f"日志级别: {LOG_LEVEL}")
         logger.info(f"启动类型: {VBOX_START_TYPE}")
         
-        # 启动时检查VirtualBox服务状态
-        self._check_startup_service_status()
+        # 移除启动时VirtualBox服务状态检查
     
     def _get_default_vbox_dir(self) -> str:
         """获取默认VirtualBox目录"""
@@ -479,7 +493,7 @@ class VirtualBoxMonitor:
     
     def get_vm_status(self, vm_name: str) -> str:
         """
-        获取虚拟机状态（增强版本，包含VirtualBox服务状态检测）
+        获取虚拟机状态（简化版本，移除服务检测）
         
         Args:
             vm_name: 虚拟机名称
@@ -487,18 +501,6 @@ class VirtualBoxMonitor:
         Returns:
             虚拟机状态: running, poweroff, paused, saved, aborted, unknown
         """
-        # 首先检查VirtualBox服务状态，只有在异常时才进行恢复
-        if not self._is_vbox_service_healthy():
-            logger.warning(f"❌ VirtualBox服务异常，尝试恢复服务...")
-            recovery_success = self._try_recover_vbox_service()
-            
-            if recovery_success:
-                logger.info("✅ VirtualBox服务恢复成功")
-            else:
-                logger.error(f"❌ VirtualBox服务恢复失败，无法获取虚拟机 {vm_name} 状态")
-                return 'unknown'
-        else:
-            logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
         
         try:
             # 从配置文件获取超时时间
@@ -571,7 +573,7 @@ class VirtualBoxMonitor:
     
     def start_vm(self, vm_name: str) -> bool:
         """
-        启动虚拟机（增强版本，包含VirtualBox服务状态检测）
+        启动虚拟机（简化版本，移除服务检测）
         
         Args:
             vm_name: 虚拟机名称
@@ -579,21 +581,9 @@ class VirtualBoxMonitor:
         Returns:
             是否成功启动
         """
-        # 首先检查VirtualBox服务状态，只有在异常时才进行恢复
-        if not self._is_vbox_service_healthy():
-            logger.warning(f"❌ VirtualBox服务异常，尝试恢复服务...")
-            recovery_success = self._try_recover_vbox_service()
-            
-            if recovery_success:
-                logger.info("✅ VirtualBox服务恢复成功")
-            else:
-                logger.error(f"❌ VirtualBox服务恢复失败，无法启动虚拟机 {vm_name}")
-                return False
-        else:
-            logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
         
         try:
-            logger.info(f"正在启动虚拟机: {vm_name}")
+            console_logger.info(f"正在启动虚拟机: {vm_name}")
             result = subprocess.run(
                 [self.vboxmanage_path, 'startvm', vm_name, '--type', VBOX_START_TYPE],
                 capture_output=True, timeout=60  # 减少超时时间
@@ -637,7 +627,7 @@ class VirtualBoxMonitor:
     
     def stop_vm(self, vm_name: str) -> bool:
         """
-        停止虚拟机（增强版本，包含VirtualBox服务状态检测）
+        停止虚拟机（简化版本，移除服务检测）
         
         Args:
             vm_name: 虚拟机名称
@@ -645,21 +635,9 @@ class VirtualBoxMonitor:
         Returns:
             是否成功停止
         """
-        # 首先检查VirtualBox服务状态，只有在异常时才进行恢复
-        if not self._is_vbox_service_healthy():
-            logger.warning(f"❌ VirtualBox服务异常，尝试恢复服务...")
-            recovery_success = self._try_recover_vbox_service()
-            
-            if recovery_success:
-                logger.info("✅ VirtualBox服务恢复成功")
-            else:
-                logger.error(f"❌ VirtualBox服务恢复失败，无法停止虚拟机 {vm_name}")
-                return False
-        else:
-            logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
         
         try:
-            logger.info(f"正在停止虚拟机: {vm_name}")
+            console_logger.info(f"正在停止虚拟机: {vm_name}")
             result = subprocess.run(
                 [self.vboxmanage_path, 'controlvm', vm_name, 'poweroff'],
                 capture_output=True, timeout=30  # 保持30秒超时
@@ -690,7 +668,7 @@ class VirtualBoxMonitor:
 
     def restart_vm(self, vm_name: str) -> bool:
         """
-        强制重启虚拟机（增强版本，包含VirtualBox服务状态检测）
+        强制重启虚拟机（简化版本，移除服务检测）
         
         Args:
             vm_name: 虚拟机名称
@@ -698,21 +676,9 @@ class VirtualBoxMonitor:
         Returns:
             是否成功重启
         """
-        # 首先检查VirtualBox服务状态，只有在异常时才进行恢复
-        if not self._is_vbox_service_healthy():
-            logger.warning(f"❌ VirtualBox服务异常，尝试恢复服务...")
-            recovery_success = self._try_recover_vbox_service()
-            
-            if recovery_success:
-                logger.info("✅ VirtualBox服务恢复成功")
-            else:
-                logger.error(f"❌ VirtualBox服务恢复失败，无法重启虚拟机 {vm_name}")
-                return False
-        else:
-            logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
         
         try:
-            logger.info(f"正在强制重启虚拟机: {vm_name}")
+            console_logger.info(f"正在强制重启虚拟机: {vm_name}")
             
             # 首先强制停止虚拟机
             logger.debug(f"强制停止虚拟机: {vm_name}")
@@ -757,27 +723,37 @@ class VirtualBoxMonitor:
 
 
     
-    def get_all_vm_status(self, scan_status: bool = False) -> List[Dict]:
+    def get_all_vm_status(self, scan_status: bool = False, quiet: bool = False) -> List[Dict]:
         """
-        获取所有虚拟机状态（简化版本，避免超时问题）
+        获取所有虚拟机状态（修复版本，正确获取虚拟机状态）
         
         Args:
             scan_status: 是否扫描虚拟机状态，默认False以避免超时
+            quiet: 是否静默模式，不输出"发现已停止虚拟机"日志
             
         Returns:
             虚拟机状态列表
         """
-        # 快速扫描虚拟机文件，不获取状态
+        # 快速扫描虚拟机文件
         vms = self.scan_vms(scan_status=False)
         vm_status_list = []
         start_failures = self.get_start_failures()
         
         for vm in vms:
+            # 获取虚拟机真实状态
+            try:
+                real_status = self.get_vm_status(vm['name'])
+                # 减少调试输出，避免重复
+                # logger.debug(f"获取虚拟机 {vm['name']} 真实状态: {real_status}")
+            except Exception as e:
+                logger.warning(f"获取虚拟机 {vm['name']} 状态失败: {e}")
+                real_status = 'unknown'
+            
             vm_info = {
                 'name': vm['name'],
                 'uuid': vm['uuid'],
                 'path': vm['path'],
-                'status': 'unknown',  # 默认状态
+                'status': real_status,  # 使用真实状态
                 'last_check': vm['last_check'],
                 'start_count': self.get_vm_start_count(vm['name'])  # 添加启动次数
             }
@@ -812,7 +788,7 @@ class VirtualBoxMonitor:
             启动结果列表
         """
         results = []
-        vm_status_list = self.get_all_vm_status()
+        vm_status_list = self.get_all_vm_status(quiet=True)  # 静默模式，避免重复日志
         
         monitor_logger.info(f"开始自动启动检查，共发现 {len(vm_status_list)} 个虚拟机")
         monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
@@ -851,7 +827,7 @@ class VirtualBoxMonitor:
         if running_count > max_start_num:
             excess_count = running_count - max_start_num
             monitor_logger.info(f"当前运行中的虚拟机数量({running_count})超过设定数量({max_start_num})，需要停止 {excess_count} 个虚拟机")
-            logger.info(f"当前运行中的虚拟机数量({running_count})超过设定数量({max_start_num})，需要停止 {excess_count} 个虚拟机")
+            console_logger.info(f"当前运行中的虚拟机数量({running_count})超过设定数量({max_start_num})，需要停止 {excess_count} 个虚拟机")
             
             # 停止多余的虚拟机
             stopped_count = 0
@@ -871,7 +847,7 @@ class VirtualBoxMonitor:
                         logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
                         monitor_logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
                 
-                logger.info(f"准备停止第 {stopped_count + 1} 个虚拟机: {vm['name']}")
+                console_logger.info(f"准备停止第 {stopped_count + 1} 个虚拟机: {vm['name']}")
                 monitor_logger.info(f"准备停止第 {stopped_count + 1} 个虚拟机: {vm['name']}")
                 
                 success = self.stop_vm(vm['name'])
@@ -886,49 +862,50 @@ class VirtualBoxMonitor:
                 stopped_count += 1
                 
                 if success:
-                    logger.info(f"自动停止虚拟机 {vm['name']} 成功 (第{stopped_count}个)")
+                    console_logger.info(f"自动停止虚拟机 {vm['name']} 成功 (第{stopped_count}个)")
                     monitor_logger.info(f"自动停止虚拟机 {vm['name']} 成功 (第{stopped_count}个)")
                 else:
-                    logger.error(f"自动停止虚拟机 {vm['name']} 失败")
+                    console_logger.error(f"自动停止虚拟机 {vm['name']} 失败")
                     monitor_logger.error(f"自动停止虚拟机 {vm['name']} 失败")
             
             monitor_logger.info(f"停止操作完成，共停止 {stopped_count} 个虚拟机")
-            logger.info(f"停止操作完成，共停止 {stopped_count} 个虚拟机")
+            console_logger.info(f"停止操作完成，共停止 {stopped_count} 个虚拟机")
             return results
         
         # 检查是否已达到目标运行数量
         if running_count >= max_start_num:
             monitor_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
-            logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
+            console_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
             # 返回空结果，表示无需操作
             return results
         
         # 计算还可以启动的虚拟机数量
         remaining_slots = max_start_num - running_count
         monitor_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
-        logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
+        console_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
         
         # 检查是否有可启动的虚拟机
         stopped_vms = [vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']]
         if not stopped_vms:
             monitor_logger.info("没有发现可启动的虚拟机")
-            logger.info("没有发现可启动的虚拟机")
+            console_logger.info("没有发现可启动的虚拟机")
             return results
         
         started_count = 0
+        failed_vms = []  # 记录启动失败的虚拟机
         
         for vm in stopped_vms:
             # 检查是否启用自动启动功能
             # 使用监控实例中的auto_start_enabled状态，而不是配置文件
             if not self.auto_start_enabled:
-                logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
+                console_logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
                 monitor_logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
                 monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
                 continue
             
             # 检查是否已达到可启动数量限制
             if started_count >= remaining_slots:
-                logger.info(f"已达到可启动数量限制 {remaining_slots}，跳过剩余虚拟机")
+                console_logger.info(f"已达到可启动数量限制 {remaining_slots}，跳过剩余虚拟机")
                 monitor_logger.info(f"已达到可启动数量限制 {remaining_slots}，跳过剩余虚拟机")
                 monitor_logger.info(f"已启动数量: {started_count}, 可启动数量: {remaining_slots}")
                 break
@@ -945,30 +922,60 @@ class VirtualBoxMonitor:
                     logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
                     monitor_logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
             
-            monitor_logger.debug(f"尝试启动虚拟机: {vm['name']}")
-            logger.info(f"准备启动第 {started_count + 1} 个虚拟机: {vm['name']}")
-            success = self.start_vm(vm['name'])
+            # 尝试启动虚拟机，最多重试2次
+            vm_started = False
+            retry_count = 0
+            max_retries = 2
+            
+            while retry_count <= max_retries and not vm_started:
+                if retry_count > 0:
+                    console_logger.info(f"第 {retry_count} 次重试启动虚拟机: {vm['name']}")
+                    monitor_logger.info(f"第 {retry_count} 次重试启动虚拟机: {vm['name']}")
+                    time.sleep(2)  # 重试前等待2秒
+                else:
+                    console_logger.info(f"准备启动第 {started_count + 1} 个虚拟机: {vm['name']}")
+                    monitor_logger.debug(f"尝试启动虚拟机: {vm['name']}")
+                
+                success = self.start_vm(vm['name'])
+                
+                if success:
+                    vm_started = True
+                    console_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count + 1}个)")
+                    monitor_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count + 1}个)")
+                else:
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        console_logger.warning(f"启动虚拟机 {vm['name']} 失败，将进行第 {retry_count} 次重试")
+                        monitor_logger.warning(f"启动虚拟机 {vm['name']} 失败，将进行第 {retry_count} 次重试")
+                    else:
+                        console_logger.error(f"启动虚拟机 {vm['name']} 失败，已重试 {max_retries} 次，跳过该虚拟机")
+                        monitor_logger.error(f"启动虚拟机 {vm['name']} 失败，已重试 {max_retries} 次，跳过该虚拟机")
+                        # 记录启动失败，供前端显示
+                        self.mark_start_failure(vm['name'])
+                        failed_vms.append(vm['name'])
+            
+            # 记录结果
             result = {
                 'name': vm['name'],
                 'original_status': vm['status'],
                 'action': 'start',
-                'success': success,
+                'success': vm_started,
+                'retry_count': retry_count,
                 'timestamp': datetime.now().isoformat()
             }
             results.append(result)
-            started_count += 1
             
-            if success:
-                logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count}个)")
-                monitor_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count}个)")
-            else:
-                logger.error(f"自动启动虚拟机 {vm['name']} 失败")
-                monitor_logger.error(f"自动启动虚拟机 {vm['name']} 失败")
-                # 记录启动失败，供前端显示
-                self.mark_start_failure(vm['name'])
+            if vm_started:
+                started_count += 1
         
         monitor_logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机，启动数量限制: {max_start_num}, 当前运行中: {running_count}, 已启动: {started_count}")
-        logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机，启动数量限制: {max_start_num}, 当前运行中: {running_count}, 已启动: {started_count}")
+        console_logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机，启动数量限制: {max_start_num}, 当前运行中: {running_count}, 已启动: {started_count}")
+        
+        # 如果有启动失败的虚拟机，输出详细信息
+        if failed_vms:
+            console_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败: {', '.join(failed_vms)}")
+            monitor_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败: {', '.join(failed_vms)}")
+        
         return results
     
     def start_monitoring(self, interval: int = None, auto_start: bool = True, start_time: str = None):
@@ -985,8 +992,8 @@ class VirtualBoxMonitor:
             start_time: 监控启动时间戳
         """
         if self.monitoring:
-            logger.warning("监控已在运行中，先停止当前监控")
-            monitor_logger.warning("监控已在运行中，先停止当前监控")
+            console_logger.info("监控配置已更新，重新启动监控以应用新设置")
+            monitor_logger.info("监控配置已更新，重新启动监控以应用新设置")
             self.stop_monitoring()
             # 等待一小段时间确保监控线程完全停止
             time.sleep(1)
@@ -1030,46 +1037,22 @@ class VirtualBoxMonitor:
                     monitor_logger.info("执行自动监控检查...")
                     monitor_logger.info(f"自动监控状态: 正在执行，间隔: {interval}秒")
                     
-                    # 检查VirtualBox服务状态，只有在异常时才进行恢复
-                    if not self._is_vbox_service_healthy():
-                        logger.warning("❌ VirtualBox服务异常，尝试恢复服务...")
-                        monitor_logger.warning("❌ VirtualBox服务异常，尝试恢复服务...")
-                        
-                        recovery_success = self._try_recover_vbox_service()
-                        if recovery_success:
-                            logger.info("✅ VirtualBox服务恢复成功，继续监控")
-                            monitor_logger.info("✅ VirtualBox服务恢复成功，继续监控")
-                        else:
-                            logger.error("❌ VirtualBox服务恢复失败，跳过本次监控")
-                            monitor_logger.error("❌ VirtualBox服务恢复失败，跳过本次监控")
-                            time.sleep(interval)
-                            continue
-                    else:
-                        logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
-                        monitor_logger.debug("✅ VirtualBox服务状态正常，无需恢复操作")
+                    # 移除VirtualBox服务检测，直接执行监控任务
                     
-                    # 添加详细的调试信息
-                    monitor_logger.info(f"=== 监控任务执行调试信息 ===")
-                    monitor_logger.info(f"当前监控间隔: {interval}秒")
-                    monitor_logger.info(f"自动启动状态: {self.auto_start_enabled}")
-                    monitor_logger.info(f"监控运行状态: {self.monitoring}")
-                    monitor_logger.info(f"当前时间: {datetime.now().isoformat()}")
-                    monitor_logger.info(f"执行时间戳: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                            # 精简调试信息，只保留必要信息
                     
-                    # 获取所有虚拟机状态
-                    vm_status_list = self.get_all_vm_status()
+                    # 获取所有虚拟机状态（非静默模式，用于监控任务）
+                    vm_status_list = self.get_all_vm_status(quiet=False)
                     # 用于自动启动检查的已停止虚拟机（包括poweroff和aborted）
                     stopped_vms_for_auto_start = [vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']]
                     
-                    monitor_logger.debug(f"当前虚拟机状态: 总数={len(vm_status_list)}, 已停止={len(stopped_vms_for_auto_start)}")
-                    monitor_logger.info(f"所有虚拟机状态: {[(vm['name'], vm['status']) for vm in vm_status_list]}")
-                    monitor_logger.info(f"已停止虚拟机: {[vm['name'] for vm in stopped_vms_for_auto_start]}")
+                    # 精简虚拟机状态输出
                     
                     # 统计虚拟机状态
                     running_vms = [vm for vm in vm_status_list if vm['status'] == 'running']
                     paused_vms = [vm for vm in vm_status_list if vm['status'] == 'paused']
-                    stopped_vms = [vm for vm in vm_status_list if vm['status'] == 'poweroff']
-                    error_vms = [vm for vm in vm_status_list if vm['status'] in ['aborted', 'error', 'unknown']]
+                    stopped_vms = [vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']]  # 包括aborted状态
+                    error_vms = [vm for vm in vm_status_list if vm['status'] in ['error', 'unknown']]  # 排除aborted，因为它已计入stopped_vms
                     
                     # 记录状态监控结果
                     status_result = {
@@ -1082,27 +1065,24 @@ class VirtualBoxMonitor:
                         'auto_start_enabled': self.auto_start_enabled
                     }
                     
-                    monitor_logger.info(f"状态监控结果: {status_result}")
+                    # 精简状态统计输出
+                    status_summary = f"虚拟机状态：运行中 {len(running_vms)}台，已关闭 {len(stopped_vms)}台，暂停 {len(paused_vms)}台，异常 {len(error_vms)}台"
+                    console_logger.info(status_summary)
                     
-                    # 生成详细的状态统计日志
-                    status_summary = f"所有虚拟机状态为：已开机：{len(running_vms)}台，已关闭：{len(stopped_vms)}台，暂停：{len(paused_vms)}台，异常：{len(error_vms)}台"
-                    logger.info(status_summary)
-                    monitor_logger.info(status_summary)
-                    
-                    # 检查是否有已停止的虚拟机
+                    # 确保"发现已停止的虚拟机"的数量与状态统计一致
                     if stopped_vms_for_auto_start:
-                        logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机")
-                        monitor_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机: {[vm['name'] for vm in stopped_vms_for_auto_start]}")
+                        console_logger.info(f"发现 {len(stopped_vms)} 个已停止的虚拟机")
+                    
+                    # 检查是否有已停止的虚拟机（只在监控任务中输出）
+                    if stopped_vms_for_auto_start:
+                        # 移除重复的日志，因为上面已经输出了
+                        pass
                         
                         # 检查自动启动是否启用
-                        monitor_logger.info(f"检查自动启动状态: {self.auto_start_enabled} (类型: {type(self.auto_start_enabled)})")
                         if self.auto_start_enabled:
-                            logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
-                            monitor_logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
-                            monitor_logger.info(f"自动启动状态: {self.auto_start_enabled} (类型: {type(self.auto_start_enabled)})")
+                            console_logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
                             
                             # 调用自动启动方法
-                            monitor_logger.info("调用auto_start_stopped_vms()方法...")
                             results = self.auto_start_stopped_vms()
                             
                             # 保存执行结果
@@ -1115,18 +1095,18 @@ class VirtualBoxMonitor:
                                 total_operations = len(results)
                                 
                                 if stop_count > 0:
-                                    logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
+                                    console_logger.info(f"停止 {stop_count} 个虚拟机")
                                     monitor_logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
                                 elif start_count > 0:
                                     if failed_count > 0:
-                                        logger.info(f"本次检查启动了 {start_count} 个虚拟机，{failed_count} 个操作失败")
+                                        console_logger.info(f"启动 {start_count} 个虚拟机，{failed_count} 个操作失败")
                                         monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机，{failed_count} 个操作失败")
                                     else:
-                                        logger.info(f"本次检查启动了 {start_count} 个虚拟机")
+                                        console_logger.info(f"启动 {start_count} 个虚拟机")
                                         monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机")
                                 else:
                                     if failed_count > 0:
-                                        logger.warning(f"本次检查执行了 {total_operations} 个操作，但全部失败")
+                                        console_logger.warning(f"{failed_count} 个操作失败")
                                         monitor_logger.warning(f"本次检查执行了 {total_operations} 个操作，但全部失败")
                                     else:
                                         # 使用详细的状态统计日志，不再显示简单的消息
@@ -1150,13 +1130,13 @@ class VirtualBoxMonitor:
                                 # 检查是否有启动失败的情况
                                 failed_vms = [vm for vm in stopped_vms_for_auto_start if vm.get('start_failure', False)]
                                 if failed_vms:
-                                    logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败: {[vm['name'] for vm in failed_vms]}")
+                                    console_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败")
                                     monitor_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败: {[vm['name'] for vm in failed_vms]}")
                                 else:
                                     # 使用详细的状态统计日志，不再显示简单的消息
                                     self.last_monitor_results = []
                         else:
-                            logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
+                            console_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
                             monitor_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
                             monitor_logger.info(f"仅执行状态监控，不进行自动启动操作")
                             monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
@@ -1166,7 +1146,7 @@ class VirtualBoxMonitor:
                         self.last_monitor_results = []
                     
                 except Exception as e:
-                    logger.error(f"监控任务出错: {e}")
+                    console_logger.error(f"监控任务出错: {e}")
                     monitor_logger.error(f"监控任务出错: {e}")
                     self.last_monitor_results = []
                 
@@ -1193,7 +1173,7 @@ class VirtualBoxMonitor:
             return
         
         self.monitoring = False
-        logger.info("自动监控已停止")
+        console_logger.info("自动监控已停止")
         monitor_logger.info("自动监控已停止")
         monitor_logger.info("自动监控状态: 已关闭")
         
@@ -1261,8 +1241,8 @@ class VirtualBoxMonitor:
         try:
             logger.debug("开始监控虚拟机状态")
             
-            # 获取所有虚拟机状态
-            vm_status_list = self.get_all_vm_status()
+            # 获取所有虚拟机状态（静默模式）
+            vm_status_list = self.get_all_vm_status(quiet=True)
             
             # 统计信息
             total_vms = len(vm_status_list)
@@ -1562,296 +1542,15 @@ class VirtualBoxMonitor:
                 logger.warning(f"重启VirtualBox服务失败: {e}")
                 monitor_logger.warning(f"重启VirtualBox服务失败: {e}")
 
-    def _is_vbox_service_healthy(self) -> bool:
-        """
-        检查VirtualBox服务是否健康（优化版本，更宽松的检查条件）
-        
-        Returns:
-            bool: 服务是否健康
-        """
-        try:
-            # 尝试执行一个简单的VBoxManage命令，使用较短超时
-            from config import VM_STATUS_TIMEOUT
-            health_timeout = min(VM_STATUS_TIMEOUT // 2, 8)  # 健康检查使用较短超时
-            
-            result = subprocess.run(
-                [self.vboxmanage_path, 'list', 'vms'],
-                capture_output=True, timeout=health_timeout
-            )
-            
-            if result.returncode == 0:
-                # 检查输出是否正常
-                try:
-                    stdout = result.stdout.decode('utf-8', errors='ignore')
-                    stderr = result.stderr.decode('utf-8', errors='ignore')
-                    
-                    # 更宽松的健康检查：只要没有错误信息就认为服务正常
-                    if not stderr.strip():
-                        logger.debug("VirtualBox服务响应正常")
-                        logger.debug(f"服务输出: {stdout.strip()}")
-                        return True
-                    else:
-                        logger.warning(f"VirtualBox服务返回错误信息: {stderr.strip()}")
-                        return False
-                except Exception as decode_error:
-                    logger.warning(f"VirtualBox服务响应解码失败: {decode_error}")
-                    return False
-            else:
-                logger.warning(f"VirtualBox服务返回错误码: {result.returncode}")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            logger.warning("VirtualBox服务响应超时，可能卡死")
-            return False
-        except Exception as e:
-            logger.warning(f"检查VirtualBox服务健康状态时出错: {e}")
-            return False
+    # 移除VirtualBox服务健康检查方法
     
-    def _try_recover_vbox_service(self) -> bool:
-        """
-        尝试恢复VirtualBox服务（增强版本，包含强制杀死进程）
-        
-        Returns:
-            bool: 是否成功恢复
-        """
-        try:
-            logger.info("开始尝试恢复VirtualBox服务...")
-            
-            # 检查是否在Windows系统上
-            if os.name == 'nt':
-                # 首先尝试强制杀死VirtualBox相关进程
-                logger.info("尝试强制杀死VirtualBox相关进程...")
-                if self._force_kill_vbox_processes():
-                    logger.info("VirtualBox进程强制终止成功")
-                    import time
-                    time.sleep(5)  # 等待进程完全终止
-                else:
-                    logger.warning("强制杀死VirtualBox进程失败")
-                
-                # 尝试重启VirtualBox服务
-                try:
-                    from config import VM_STATUS_TIMEOUT
-                    service_restart_timeout = min(VM_STATUS_TIMEOUT, 15)
-                    
-                    logger.info("停止VirtualBox服务...")
-                    subprocess.run(['net', 'stop', 'VBoxSvc'], 
-                                 capture_output=True, timeout=service_restart_timeout)
-                    
-                    import time
-                    time.sleep(3)  # 等待服务完全停止
-                    
-                    logger.info("启动VirtualBox服务...")
-                    subprocess.run(['net', 'start', 'VBoxSvc'], 
-                                 capture_output=True, timeout=service_restart_timeout)
-                    
-                    time.sleep(5)  # 增加等待时间，确保服务完全启动
-                    logger.info("VirtualBox服务重启完成")
-                    
-                    # 验证服务是否恢复正常
-                    if self._is_vbox_service_healthy():
-                        logger.info("VirtualBox服务恢复成功")
-                        return True
-                    else:
-                        logger.warning("VirtualBox服务重启后仍无法正常工作，尝试激进恢复...")
-                        return self._aggressive_vbox_recovery()
-                        
-                except Exception as e:
-                    logger.error(f"重启VirtualBox服务失败: {e}")
-                    return False
-            else:
-                logger.warning("非Windows系统，无法自动重启VirtualBox服务")
-                return False
-                
-        except Exception as e:
-            logger.error(f"恢复VirtualBox服务时出错: {e}")
-            return False
+    # 移除VirtualBox服务恢复方法
     
-    def _force_kill_vbox_processes(self) -> bool:
-        """
-        强制杀死VirtualBox相关进程
-        
-        Returns:
-            bool: 是否成功杀死进程
-        """
-        try:
-            logger.info("开始强制杀死VirtualBox相关进程...")
-            
-            # VirtualBox相关进程名称
-            vbox_processes = [
-                'VBoxSVC.exe',
-                'VBoxHeadless.exe', 
-                'VBoxManage.exe',
-                'VirtualBox.exe',
-                'VBoxDrv.inf',
-                'VBoxDrv.sys'
-            ]
-            
-            killed_count = 0
-            
-            # 使用tasklist和taskkill命令强制杀死进程
-            for process_name in vbox_processes:
-                try:
-                    # 检查进程是否存在
-                    check_result = subprocess.run(
-                        ['tasklist', '/FI', f'IMAGENAME eq {process_name}', '/FO', 'CSV'],
-                        capture_output=True, timeout=10
-                    )
-                    
-                    if process_name.lower() in check_result.stdout.decode('utf-8', errors='ignore').lower():
-                        logger.info(f"发现进程: {process_name}，尝试强制终止...")
-                        
-                        # 强制杀死进程
-                        kill_result = subprocess.run(
-                            ['taskkill', '/F', '/IM', process_name],
-                            capture_output=True, timeout=10
-                        )
-                        
-                        if kill_result.returncode == 0:
-                            logger.info(f"成功终止进程: {process_name}")
-                            killed_count += 1
-                        else:
-                            logger.warning(f"终止进程失败: {process_name}, 返回码: {kill_result.returncode}")
-                            
-                except subprocess.TimeoutExpired:
-                    logger.warning(f"终止进程超时: {process_name}")
-                except Exception as e:
-                    logger.warning(f"终止进程 {process_name} 时出错: {e}")
-            
-            # 尝试杀死所有VBox相关进程（使用通配符）
-            try:
-                logger.info("尝试杀死所有VBox相关进程...")
-                subprocess.run(
-                    ['taskkill', '/F', '/IM', 'VBox*'],
-                    capture_output=True, timeout=15
-                )
-                logger.info("VBox进程清理完成")
-            except Exception as e:
-                logger.warning(f"清理VBox进程时出错: {e}")
-            
-            # 尝试杀死所有VirtualBox相关进程
-            try:
-                logger.info("尝试杀死所有VirtualBox相关进程...")
-                subprocess.run(
-                    ['taskkill', '/F', '/IM', 'VirtualBox*'],
-                    capture_output=True, timeout=15
-                )
-                logger.info("VirtualBox进程清理完成")
-            except Exception as e:
-                logger.warning(f"清理VirtualBox进程时出错: {e}")
-            
-            logger.info(f"进程清理完成，成功终止 {killed_count} 个进程")
-            return True
-            
-        except Exception as e:
-            logger.error(f"强制杀死VirtualBox进程时出错: {e}")
-            return False
+    # 移除强制杀死VirtualBox进程方法
     
-    def _aggressive_vbox_recovery(self) -> bool:
-        """
-        激进恢复VirtualBox服务（当常规恢复失败时使用）
-        
-        Returns:
-            bool: 是否成功恢复
-        """
-        try:
-            logger.warning("开始激进恢复VirtualBox服务...")
-            
-            # 1. 强制杀死所有相关进程
-            logger.info("步骤1: 强制杀死所有VirtualBox相关进程...")
-            self._force_kill_vbox_processes()
-            
-            import time
-            time.sleep(10)  # 等待更长时间确保进程完全终止
-            
-            # 2. 尝试重启系统服务
-            logger.info("步骤2: 重启VirtualBox系统服务...")
-            try:
-                subprocess.run(['sc', 'stop', 'VBoxSvc'], capture_output=True, timeout=30)
-                time.sleep(5)
-                subprocess.run(['sc', 'start', 'VBoxSvc'], capture_output=True, timeout=30)
-                time.sleep(10)  # 等待服务完全启动
-                logger.info("VirtualBox系统服务重启完成")
-            except Exception as e:
-                logger.warning(f"重启系统服务失败: {e}")
-            
-            # 3. 尝试重新注册VirtualBox组件
-            logger.info("步骤3: 尝试重新注册VirtualBox组件...")
-            try:
-                vbox_install_path = os.path.dirname(self.vboxmanage_path)
-                vboxdrv_path = os.path.join(vbox_install_path, 'drivers', 'install', 'VBoxDrv.inf')
-                
-                if os.path.exists(vboxdrv_path):
-                    subprocess.run(['rundll32', 'setupapi,InstallHinfSection', 'DefaultInstall', '132', vboxdrv_path], 
-                                 capture_output=True, timeout=60)
-                    logger.info("VirtualBox驱动重新注册完成")
-                else:
-                    logger.warning("未找到VirtualBox驱动文件")
-            except Exception as e:
-                logger.warning(f"重新注册VirtualBox组件失败: {e}")
-            
-            # 4. 等待并验证服务状态
-            time.sleep(15)  # 等待所有操作完成
-            
-            if self._is_vbox_service_healthy():
-                logger.info("激进恢复成功，VirtualBox服务已恢复正常")
-                return True
-            else:
-                logger.error("激进恢复失败，VirtualBox服务仍无法正常工作")
-                return False
-                
-        except Exception as e:
-            logger.error(f"激进恢复VirtualBox服务时出错: {e}")
-            return False
+    # 移除激进恢复VirtualBox服务方法
     
-    def _check_startup_service_status(self):
-        """
-        启动时检查VirtualBox服务状态
-        只有在服务异常时才进行恢复操作，如果正常则不进行重启和杀死进程操作
-        """
-        try:
-            logger.info("=== 启动时VirtualBox服务状态检查 ===")
-            monitor_logger.info("=== 启动时VirtualBox服务状态检查 ===")
-            logger.info("开始检查VirtualBox服务状态...")
-            monitor_logger.info("开始检查VirtualBox服务状态...")
-            
-            # 执行服务健康检查
-            is_healthy = self._is_vbox_service_healthy()
-            
-            if is_healthy:
-                logger.info("✅ VirtualBox服务状态正常")
-                monitor_logger.info("✅ VirtualBox服务状态正常")
-                logger.info("📝 VirtualBox VMs 正常可用，无需执行任何恢复操作")
-                monitor_logger.info("📝 VirtualBox VMs 正常可用，无需执行任何恢复操作")
-                logger.info("🚀 系统将直接启动监控，不进行重启和杀死进程操作")
-                monitor_logger.info("🚀 系统将直接启动监控，不进行重启和杀死进程操作")
-                logger.info("💡 如果后续监控中发现服务异常，系统会自动尝试恢复")
-                monitor_logger.info("💡 如果后续监控中发现服务异常，系统会自动尝试恢复")
-            else:
-                logger.warning("❌ 启动时检测到VirtualBox服务异常")
-                monitor_logger.warning("❌ 启动时检测到VirtualBox服务异常")
-                logger.warning("🔧 尝试恢复VirtualBox服务...")
-                monitor_logger.warning("🔧 尝试恢复VirtualBox服务...")
-                logger.info("⚠️  注意：只有在VirtualBox VMs不可用时才会进行重启和杀死进程操作")
-                monitor_logger.info("⚠️  注意：只有在VirtualBox VMs不可用时才会进行重启和杀死进程操作")
-                
-                recovery_success = self._try_recover_vbox_service()
-                if recovery_success:
-                    logger.info("✅ 启动时VirtualBox服务恢复成功")
-                    monitor_logger.info("✅ 启动时VirtualBox服务恢复成功")
-                    logger.info("🚀 系统现在可以正常使用VirtualBox功能")
-                    monitor_logger.info("🚀 系统现在可以正常使用VirtualBox功能")
-                else:
-                    logger.error("❌ 启动时VirtualBox服务恢复失败")
-                    monitor_logger.error("❌ 启动时VirtualBox服务恢复失败")
-                    logger.error("⚠️  某些VirtualBox功能可能受限")
-                    monitor_logger.error("⚠️  某些VirtualBox功能可能受限")
-            
-            logger.info("=== 启动时VirtualBox服务状态检查完成 ===")
-            monitor_logger.info("=== 启动时VirtualBox服务状态检查完成 ===")
-                    
-        except Exception as e:
-            logger.error(f"启动时检查VirtualBox服务状态时出错: {e}")
-            monitor_logger.error(f"启动时检查VirtualBox服务状态时出错: {e}")
+    # 移除启动时VirtualBox服务状态检查方法
 
     def load_vm_config(self):
         """加载虚拟机配置文件"""
@@ -1900,10 +1599,6 @@ class VirtualBoxMonitor:
             with open(self.vm_config_file, 'w', encoding='utf-8') as f:
                 f.write("# 虚拟机启动次数配置文件\n")
                 f.write("# 格式: 虚拟机名称 = 启动次数\n\n")
-                f.write("# 自动删除配置已移至config.py\n")
-                f.write("# AUTO_DELETE_ENABLED = false\n")
-                f.write("# MAX_START_COUNT = 10\n")
-                f.write("# DELETE_BACKUP_DIR = delete_bak\n\n")
                 
                 # 写入虚拟机启动次数
                 for vm_name, count in self.vm_start_counts.items():

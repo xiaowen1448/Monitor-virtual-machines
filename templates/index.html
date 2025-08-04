@@ -1465,6 +1465,9 @@
                             vm.last_check = vmStatus.last_check || vm.last_check;
                             vm.start_failure = vmStatus.start_failure || false;
                             vm.exception = vmStatus.exception || false;
+                            // 更新启动次数
+                            vm.start_count = vmStatus.start_count || vm.start_count || 0;
+                            vm.delete_threshold = vmStatus.delete_threshold || vm.delete_threshold || 10;
                         }
                     });
                     
@@ -1512,20 +1515,23 @@
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    const vm = vmList.find(v => v.name === vmName);
-                    if (vm) {
-                        vm.status = data.data.status;
-                        vm.uuid = data.data.uuid || vm.uuid;
-                        vm.last_check = data.data.last_check || vm.last_check;
-                        vm.start_failure = data.data.start_failure || false;
-                        vm.exception = data.data.exception || false;
-                        
-                        // 重新显示当前页以更新状态
-                        displayVMs(vmList);
-                        console.log(`虚拟机 ${vmName} 状态更新完成`);
-                    }
-                } else {
+                                    if (data.success) {
+                        const vm = vmList.find(v => v.name === vmName);
+                        if (vm) {
+                            vm.status = data.data.status;
+                            vm.uuid = data.data.uuid || vm.uuid;
+                            vm.last_check = data.data.last_check || vm.last_check;
+                            vm.start_failure = data.data.start_failure || false;
+                            vm.exception = data.data.exception || false;
+                            // 更新启动次数
+                            vm.start_count = data.data.start_count || vm.start_count || 0;
+                            vm.delete_threshold = data.data.delete_threshold || vm.delete_threshold || 10;
+                            
+                            // 重新显示当前页以更新状态
+                            displayVMs(vmList);
+                            console.log(`虚拟机 ${vmName} 状态更新完成`);
+                        }
+                    } else {
                     console.error(`获取虚拟机 ${vmName} 状态失败:`, data.message);
                 }
             } catch (error) {
@@ -2466,13 +2472,9 @@
                     autoDeleteToggle.onchange = null;
                     autoDeleteCount.onchange = null;
                     
-                    // 检查监控状态，如果监控未启用，强制禁用自动删除
-                    const monitoringToggle = document.getElementById('monitoringToggle');
-                    const shouldEnableAutoDelete = config.enabled && monitoringToggle.checked;
-                    
-                    // 设置自动删除按钮状态
-                    autoDeleteToggle.checked = shouldEnableAutoDelete;
-                    console.log('设置自动删除按钮状态:', shouldEnableAutoDelete);
+                    // 设置自动删除按钮状态（独立控制，不依赖监控状态）
+                    autoDeleteToggle.checked = config.enabled;
+                    console.log('设置自动删除按钮状态:', config.enabled);
                     
                     // 设置自动删除次数
                     const maxCount = config.max_count || 10;
@@ -2506,12 +2508,9 @@
                 const autoDeleteCount = document.getElementById('autoDeleteCount');
                 const monitoringToggle = document.getElementById('monitoringToggle');
                 
-                // 检查监控状态，如果监控未启用，强制禁用自动删除
+                // 自动删除功能独立控制，不依赖监控状态
                 let enabled = autoDeleteToggle.checked;
-                if (!monitoringToggle.checked) {
-                    enabled = false;
-                    console.log('监控未启用，强制禁用自动删除功能');
-                }
+                console.log('自动删除功能状态:', enabled);
                 
                 const maxCount = parseInt(autoDeleteCount.value);
                 const backupDir = 'delete_bak';
@@ -2534,11 +2533,7 @@
                 
                 if (data.success) {
                     console.log('自动删除配置保存成功');
-                    if (!monitoringToggle.checked && autoDeleteToggle.checked) {
-                        showAlert('warning', '监控未启用，自动删除功能已被禁用');
-                    } else {
-                        showAlert('success', '自动删除配置已保存');
-                    }
+                    showAlert('success', '自动删除配置已保存');
                 } else {
                     console.error('保存自动删除配置失败:', data.message);
                     showAlert('danger', '保存自动删除配置失败: ' + data.message);
@@ -3090,7 +3085,7 @@
         function startDynamicConfigUpdate() {
             console.log('启动动态配置更新...');
             
-            // 每10秒检查一次配置更新，减少API调用频率
+            // 每30秒检查一次配置更新，大幅减少API调用频率
             configUpdateInterval = setInterval(async () => {
                 // 只在页面可见时执行配置检查
                 if (isPageVisible) {
@@ -3106,7 +3101,7 @@
                 } else {
                     console.log('页面不可见，跳过配置检查');
                 }
-            }, 10000); // 增加到10秒间隔，减少API调用频率
+            }, 30000); // 增加到30秒间隔，大幅减少API调用频率
             
             updateDynamicUpdateStatus('运行中', '动态配置更新已启动');
             console.log('动态配置更新已启动，每10秒检查一次');
@@ -3127,8 +3122,8 @@
             try {
                 const currentTime = Date.now();
                 
-                // 避免过于频繁的检查，最小间隔5秒
-                if (currentTime - lastConfigUpdate < 5000) {
+                // 避免过于频繁的检查，最小间隔15秒
+                if (currentTime - lastConfigUpdate < 15000) {
                     console.log('配置检查过于频繁，跳过本次检查');
                     return;
                 }
@@ -3155,7 +3150,7 @@
         // 检查Web自动刷新配置
         async function checkWebRefreshConfig() {
             // 检查是否需要节流
-            if (shouldThrottleAPI('checkWebRefreshConfig', 8000)) {
+            if (shouldThrottleAPI('checkWebRefreshConfig', 15000)) {
                 return;
             }
             
@@ -3262,7 +3257,7 @@
         // 检查自动监控配置
         async function checkAutoMonitorConfig() {
             // 检查是否需要节流
-            if (shouldThrottleAPI('checkAutoMonitorConfig', 8000)) {
+            if (shouldThrottleAPI('checkAutoMonitorConfig', 15000)) {
                 return;
             }
             
@@ -3299,7 +3294,7 @@
                         monitoringToggle.checked = configMonitoringState;
                         hasChanges = true;
                         
-                        // 如果状态变为启用，启动监控
+                        // 如果状态变为启用，启动监控（但不立即重启）
                         if (configMonitoringState && !currentMonitoringState) {
                             console.log('检测到自动监控已启用，启动监控...');
                             const interval = monitorInterval.value;
@@ -3313,7 +3308,7 @@
                         console.log('自动监控按钮状态已同步');
                     }
                     
-                    // 检查监控间隔
+                    // 检查监控间隔（减少不必要的重启）
                     const currentMonitorInterval = parseInt(monitorInterval.value);
                     const configMonitorInterval = config.interval_value || 30;
                     
@@ -3322,9 +3317,9 @@
                         monitorInterval.value = configMonitorInterval;
                         hasChanges = true;
                         
-                        // 如果监控正在运行，重新启动以应用新间隔
-                        if (monitoringToggle.checked) {
-                            console.log('检测到监控间隔已更改，重新启动监控...');
+                        // 只有在监控正在运行且间隔变化较大时才重启
+                        if (monitoringToggle.checked && Math.abs(currentMonitorInterval - configMonitorInterval) > 5) {
+                            console.log('检测到监控间隔变化较大，重新启动监控...');
                             const autoStart = autoStartToggle.checked;
                             startMonitoring(configMonitorInterval, autoStart);
                         }

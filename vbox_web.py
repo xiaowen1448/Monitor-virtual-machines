@@ -20,7 +20,48 @@ from datetime import datetime, timedelta
 # 添加当前目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from vbox_monitor import get_vbox_monitor, VirtualBoxMonitor
+from vbox_monitor import get_vbox_monitor, VirtualBoxMonitor, console_logger
+
+def print_all_config_status():
+    """打印所有配置的详细信息"""
+    try:
+        # 强制重新加载配置模块以获取最新值
+        import importlib
+        import sys
+        
+        if 'config' in sys.modules:
+            importlib.reload(sys.modules['config'])
+        
+        from config import (
+            AUTO_REFRESH_BUTTON_ENABLED, AUTO_REFRESH_INTERVAL_VALUE,
+            AUTO_MONITOR_BUTTON_ENABLED, AUTO_MONITOR_INTERVAL_VALUE,
+            AUTO_START_VM_BUTTON_ENABLED, AUTO_START_STOPPED_NUM,
+            AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT
+        )
+        
+        # 打印所有配置状态
+        if AUTO_REFRESH_BUTTON_ENABLED:
+            console_logger.info(f"自动刷新: 已启用，间隔 {AUTO_REFRESH_INTERVAL_VALUE} 秒")
+        else:
+            console_logger.info("自动刷新: 已禁用")
+        
+        if AUTO_MONITOR_BUTTON_ENABLED:
+            console_logger.info(f"自动监控: 已启用，间隔 {AUTO_MONITOR_INTERVAL_VALUE} 秒")
+        else:
+            console_logger.info("自动监控: 已禁用")
+        
+        if AUTO_START_VM_BUTTON_ENABLED:
+            console_logger.info(f"自启动虚拟机: 已启用，启动数量 {AUTO_START_STOPPED_NUM}")
+        else:
+            console_logger.info("自启动虚拟机: 已禁用")
+        
+        if AUTO_DELETE_ENABLED:
+            console_logger.info(f"自动删除虚拟机: 已启用，启动次数限制 {AUTO_DELETE_MAX_COUNT}")
+        else:
+            console_logger.info("自动删除虚拟机: 已禁用")
+            
+    except Exception as e:
+        logger.error(f"打印配置状态失败: {e}")
 
 # 登录认证装饰器
 def login_required(f):
@@ -217,6 +258,12 @@ def update_auto_monitor_config(enabled, interval, auto_start_enabled):
 def update_web_refresh_config(enabled, interval):
     """更新Web自动刷新配置"""
     try:
+        # 控制台输出配置变更
+        if enabled:
+            console_logger.info(f"自动刷新: 已启用，间隔 {interval} 秒")
+        else:
+            console_logger.info("自动刷新: 已禁用")
+        
         # 更新启用状态
         success1 = update_config_value('AUTO_REFRESH_BUTTON_ENABLED', enabled)
         # 更新间隔
@@ -309,8 +356,8 @@ def start_auto_refresh(interval):
                 # 执行实际的刷新操作
                 if monitor:
                     try:
-                        # 重新扫描虚拟机
-                        vm_list = monitor.get_all_vm_status()
+                        # 重新扫描虚拟机（静默模式，避免重复日志）
+                        vm_list = monitor.get_all_vm_status(quiet=True)
                         logger.info(f"自动刷新完成，扫描到 {len(vm_list)} 个虚拟机")
                         
                         # 记录每个虚拟机的状态
@@ -422,6 +469,25 @@ def init_monitor():
         except ImportError:
             logger.warning("无法加载自动刷新配置，使用默认值")
         
+        # 加载保存的自动监控配置
+        try:
+            from config import AUTO_MONITOR_BUTTON_ENABLED, AUTO_MONITOR_INTERVAL_VALUE, AUTO_START_VM_BUTTON_ENABLED
+            auto_monitor_enabled = AUTO_MONITOR_BUTTON_ENABLED
+            auto_monitor_interval = AUTO_MONITOR_INTERVAL_VALUE
+            auto_start_enabled = AUTO_START_VM_BUTTON_ENABLED
+            
+            if auto_monitor_enabled:
+                logger.info(f"加载保存的自动监控配置: 已启用，间隔: {auto_monitor_interval}秒，自动启动: {auto_start_enabled}")
+                # 启动自动监控
+                start_time = datetime.now().isoformat()
+                monitor.start_monitoring(auto_monitor_interval, auto_start_enabled, start_time)
+                logger.info(f"自动监控已启动: 间隔={auto_monitor_interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
+                logger.info(f"自动监控状态: 已开启，执行间隔: {auto_monitor_interval}秒")
+            else:
+                logger.info("加载保存的自动监控配置: 已禁用")
+        except ImportError:
+            logger.warning("无法加载自动监控配置，使用默认值")
+        
         return True
     except Exception as e:
         logger.error(f"初始化监控器失败: {e}")
@@ -507,7 +573,7 @@ def api_get_vms():
         logger.debug(f"扫描状态参数: {scan_status}")
         
         logger.debug("调用monitor.get_all_vm_status()")
-        vm_list = monitor.get_all_vm_status(scan_status=scan_status)
+        vm_list = monitor.get_all_vm_status(scan_status=scan_status, quiet=True)  # 静默模式，避免重复日志
         logger.debug(f"获取到 {len(vm_list)} 个虚拟机状态")
         
         # 为每个虚拟机添加启动次数和删除阈值信息
@@ -1303,25 +1369,26 @@ def api_save_auto_monitor_config():
         if update_auto_monitor_config(enabled, interval, auto_start_enabled):
             # 如果监控正在运行且配置发生变化，重新启动监控
             if monitor and hasattr(monitor, 'monitoring') and monitor.monitoring:
-                logger.info("监控正在运行，将重新启动以应用新配置")
+                logger.info(f"监控配置已更新，重新启动监控以应用新间隔: {interval}秒")
                 monitor.stop_monitoring()
                 time.sleep(1)  # 等待停止完成
                 if enabled:
                     # 记录新的启动时间
                     start_time = datetime.now().isoformat()
                     monitor.start_monitoring(interval, auto_start_enabled, start_time)
-                    logger.info(f"自动监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
-                    logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
+                    logger.info(f"自动监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
                 else:
                     logger.info("自动监控状态: 已关闭")
             elif enabled:
                 # 如果监控未运行但配置为启用，启动监控
                 start_time = datetime.now().isoformat()
                 monitor.start_monitoring(interval, auto_start_enabled, start_time)
-                logger.info(f"自动监控已启动: 间隔={interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
-                logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
+                logger.info(f"自动监控已启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
             else:
                 logger.info("自动监控状态: 已关闭")
+            
+            # 打印所有配置状态
+            print_all_config_status()
             
             response_data = {
                 'success': True,
@@ -1427,6 +1494,9 @@ def api_update_web_refresh_interval():
         
         # 直接更新配置文件中的AUTO_REFRESH_INTERVAL_VALUE
         success2 = update_config_value('AUTO_REFRESH_INTERVAL_VALUE', interval)
+        
+        # 打印所有配置状态
+        print_all_config_status()
         
         if success1 and success2:
             # 更新全局自动刷新状态
@@ -1649,6 +1719,10 @@ def api_update_config_parameter():
         # 使用update_config_value函数更新配置文件
         if update_config_value(parameter_name, value):
             logger.info(f"配置参数 {parameter_name} 更新成功，新值: {value}")
+            
+            # 打印所有配置状态
+            print_all_config_status()
+            
             response_data = {
                 'success': True,
                 'message': f'配置参数 {parameter_name} 更新成功',
@@ -1998,6 +2072,9 @@ def api_save_auto_delete_config():
             # 更新监控器中的配置
             monitor = get_vbox_monitor()
             monitor.set_auto_delete_config(enabled, max_count, backup_dir)
+            
+            # 打印所有配置状态
+            print_all_config_status()
             
             return jsonify({'success': True, 'message': '自动删除配置已保存'})
         else:

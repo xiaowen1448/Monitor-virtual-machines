@@ -10,6 +10,22 @@ import subprocess
 import time
 from pathlib import Path
 
+# 导入console_logger用于控制台输出
+try:
+    from vbox_monitor import console_logger
+except ImportError:
+    # 如果无法导入，创建一个简单的控制台输出函数
+    def console_logger():
+        class SimpleLogger:
+            def info(self, msg):
+                print(msg)
+            def warning(self, msg):
+                print(f"警告: {msg}")
+            def error(self, msg):
+                print(f"错误: {msg}")
+        return SimpleLogger()
+    console_logger = console_logger()
+
 def check_virtualbox():
     """检查VirtualBox是否已安装"""
     try:
@@ -39,83 +55,7 @@ def check_virtualbox():
     print("✗ 未找到VirtualBox，请确保已正确安装")
     return False
 
-def check_vbox_service_health():
-    """
-    检查VirtualBox服务是否健康可用
-    
-    Returns:
-        bool: 服务是否健康可用
-    """
-    print("=== 检查VirtualBox服务状态 ===")
-    
-    # 首先检查VBoxManage是否可用
-    vboxmanage_path = None
-    
-    # 尝试从PATH中找到VBoxManage
-    try:
-        result = subprocess.run(['VBoxManage', '--version'], 
-                              capture_output=True, text=True, timeout=10)
-        if result.returncode == 0:
-            vboxmanage_path = 'VBoxManage'
-            print(f"✓ 从PATH中找到VBoxManage，版本: {result.stdout.strip()}")
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    
-    # 如果PATH中没有找到，检查常见安装路径
-    if not vboxmanage_path:
-        possible_paths = [
-            r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe",
-            r"C:\Program Files (x86)\Oracle\VirtualBox\VBoxManage.exe",
-            "/usr/bin/VBoxManage",
-            "/usr/local/bin/VBoxManage",
-            "/Applications/VirtualBox.app/Contents/MacOS/VBoxManage"
-        ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                vboxmanage_path = path
-                print(f"✓ 找到VBoxManage: {path}")
-                break
-    
-    if not vboxmanage_path:
-        print("✗ 未找到VBoxManage，VirtualBox服务不可用")
-        return False
-    
-    # 检查VirtualBox服务响应性
-    print("正在检查VirtualBox服务响应性...")
-    try:
-        # 尝试执行一个简单的VBoxManage命令
-        result = subprocess.run(
-            [vboxmanage_path, 'list', 'vms'],
-            capture_output=True, timeout=15
-        )
-        
-        if result.returncode == 0:
-            try:
-                stdout = result.stdout.decode('utf-8', errors='ignore')
-                stderr = result.stderr.decode('utf-8', errors='ignore')
-                
-                # 检查输出是否正常
-                if stdout.strip() and not stderr.strip():
-                    print("✓ VirtualBox服务响应正常")
-                    print("✓ VirtualBox VMs 可用")
-                    return True
-                else:
-                    print("⚠ VirtualBox服务返回异常响应")
-                    return False
-            except:
-                print("⚠ VirtualBox服务响应解码失败")
-                return False
-        else:
-            print(f"✗ VirtualBox服务返回错误码: {result.returncode}")
-            return False
-            
-    except subprocess.TimeoutExpired:
-        print("✗ VirtualBox服务响应超时")
-        return False
-    except Exception as e:
-        print(f"✗ 检查VirtualBox服务时出错: {e}")
-        return False
+# 移除VirtualBox服务健康检查函数
 
 def check_python_dependencies():
     """检查Python依赖"""
@@ -136,6 +76,49 @@ def check_python_dependencies():
         return False
     
     return True
+
+def print_initial_config():
+    """打印初始配置状态"""
+    try:
+        from config import (
+            AUTO_REFRESH_BUTTON_ENABLED, AUTO_REFRESH_INTERVAL_VALUE,
+            AUTO_MONITOR_BUTTON_ENABLED, AUTO_MONITOR_INTERVAL_VALUE,
+            AUTO_START_VM_BUTTON_ENABLED, AUTO_START_STOPPED_NUM,
+            AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT
+        )
+        
+        print("\n=== 当前配置状态 ===")
+        
+        # 自动刷新配置
+        if AUTO_REFRESH_BUTTON_ENABLED:
+            console_logger.info(f"自动刷新: 已启用，间隔 {AUTO_REFRESH_INTERVAL_VALUE} 秒")
+        else:
+            console_logger.info("自动刷新: 已禁用")
+        
+        # 自动监控配置
+        if AUTO_MONITOR_BUTTON_ENABLED:
+            console_logger.info(f"自动监控: 已启用，间隔 {AUTO_MONITOR_INTERVAL_VALUE} 秒")
+        else:
+            console_logger.info("自动监控: 已禁用")
+        
+        # 自启动虚拟机配置
+        if AUTO_START_VM_BUTTON_ENABLED:
+            console_logger.info(f"自启动虚拟机: 已启用，启动数量 {AUTO_START_STOPPED_NUM}")
+        else:
+            console_logger.info("自启动虚拟机: 已禁用")
+        
+        # 自动删除虚拟机配置
+        if AUTO_DELETE_ENABLED:
+            console_logger.info(f"自动删除虚拟机: 已启用，启动次数限制 {AUTO_DELETE_MAX_COUNT}")
+        else:
+            console_logger.info("自动删除虚拟机: 已禁用")
+        
+        print("==================\n")
+        
+    except ImportError as e:
+        print(f"无法读取配置文件: {e}")
+    except Exception as e:
+        print(f"读取配置状态失败: {e}")
 
 def create_config():
     """创建配置文件"""
@@ -303,15 +286,8 @@ def main():
     
     print()
     
-    # 检查VirtualBox服务状态
-    if not check_vbox_service_health():
-        print("\n❌ VirtualBox服务不可用")
-        print("系统将尝试恢复VirtualBox服务...")
-        print("注意：如果VirtualBox VMs正常可用，系统不会进行重启和杀死进程操作")
-        print("如果服务异常，系统将尝试自动恢复")
-    else:
-        print("\n✅ VirtualBox VMs 正常可用")
-        print("系统将直接启动监控，不进行重启和杀死进程操作")
+    # 移除VirtualBox服务状态检查
+    print("\n✅ 系统将直接启动监控")
     
     print()
     
@@ -325,7 +301,9 @@ def main():
     # 创建配置文件
     create_config()
     
-    print()
+    # 打印初始配置状态
+    print_initial_config()
+    
     print("=== 启动监控系统 ===")
     
     # 启动Web应用
