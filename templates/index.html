@@ -7,6 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* 确保页面底部有适当间距 */
+        body {
+            padding-bottom: 10px;
+        }
+        
         .status-badge {
             font-size: 0.8em;
         }
@@ -39,25 +44,38 @@
         
         /* 虚拟机列表容器样式 */
         .vm-list-container {
-            height: 700px; /* 增加高度，确保7个虚拟机能够完全显示 */
+            height: auto; /* 自动适应高度 */
+            max-height: calc(100vh - 400px); /* 动态比例：视口高度减去400px基础值 */
             overflow-y: auto;
             overflow-x: hidden;
             padding: 1rem;
+            padding-bottom: 3rem; /* 增加底部内边距，确保最后一行内容完全可见 */
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
             background-color: #f8f9fa;
+            transition: max-height 0.3s ease; /* 添加平滑过渡效果 */
         }
         
         /* 响应式高度调整 */
         @media (max-height: 800px) {
             .vm-list-container {
-                height: 600px;
+                max-height: calc(100vh - 350px); /* 动态比例：视口高度减去350px基础值 */
+                padding-bottom: 2.5rem; /* 小屏幕下适当减少底部内边距 */
+            }
+            .container-fluid {
+                height: calc(100vh - 15px);
+                margin-bottom: 15px;
             }
         }
         
         @media (max-height: 600px) {
             .vm-list-container {
-                height: 500px;
+                max-height: calc(100vh - 300px); /* 动态比例：视口高度减去300px基础值 */
+                padding-bottom: 2rem; /* 更小屏幕下进一步减少底部内边距 */
+            }
+            .container-fluid {
+                height: calc(100vh - 10px);
+                margin-bottom: 10px;
             }
         }
         
@@ -88,6 +106,11 @@
             background: linear-gradient(180deg, #343a40 0%, #212529 100%);
         }
         
+        /* 确保滚动条不会遮挡内容 */
+        .vm-list-container {
+            scrollbar-gutter: stable;
+        }
+        
         /* Firefox 滚动条样式 */
         .vm-list-container {
             scrollbar-width: thin;
@@ -101,12 +124,15 @@
             background: linear-gradient(180deg, transparent 0%, #f8f9fa 50%);
             border-top: 1px solid #dee2e6;
             z-index: 10;
+            padding: 0.5rem 0;
+            margin-top: 0.5rem;
         }
         
-        /* 确保页面整体高度固定 */
+        /* 确保页面整体高度固定，留出底部间距 */
         .container-fluid {
-            height: 100vh;
+            height: calc(100vh - 20px);
             overflow: hidden;
+            margin-bottom: 20px;
         }
         
         /* 头部区域固定高度 */
@@ -130,12 +156,15 @@
             flex: 1;
             overflow: hidden;
             padding: 0;
+            display: flex;
+            flex-direction: column;
         }
         
         /* 确保虚拟机卡片在滚动容器中正常显示 */
         .vm-list-container .row {
             margin: 0;
             min-height: 100%;
+            flex-wrap: wrap;
         }
         
         .vm-list-container .col-md-6,
@@ -149,6 +178,11 @@
             height: auto;
             min-height: 120px;
             margin-bottom: 0.5rem;
+        }
+        
+        /* 确保最后一个虚拟机卡片有足够的底部间距 */
+        .vm-list-container .vm-card:last-child {
+            margin-bottom: 1rem;
         }
         
         /* 优化虚拟机卡片内容布局 */
@@ -442,7 +476,7 @@
         </div>
 
         <!-- 虚拟机列表 -->
-        <div class="row mt-3 flex-grow-1">
+        <div class="row mt-3 flex-grow-1 mb-3">
             <div class="col-12">
                 <div class="card vm-list-card">
                     <div class="card-header">
@@ -576,8 +610,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('页面加载完成，开始初始化...');
             
-            // 调整虚拟机列表容器高度
-            adjustVMListContainerHeight();
+            // 精确计算虚拟机列表容器高度
+            calculatePreciseContainerHeight();
+            
+            // 确保滚动到底部时内容完全可见
+            ensureBottomContentVisible();
             
             loadVMs();
             loadMonitorStatus();
@@ -597,34 +634,11 @@
             }, 2000);
         });
         
-        // 调整虚拟机列表容器高度
-        function adjustVMListContainerHeight() {
-            const container = document.querySelector('.vm-list-container');
-            if (container) {
-                const windowHeight = window.innerHeight;
-                const headerHeight = document.querySelector('.bg-primary')?.offsetHeight || 80;
-                const controlPanelHeight = document.querySelector('.row.mt-3:first-of-type')?.offsetHeight || 120;
-                const footerHeight = 20; // 预留底部空间
-                
-                const availableHeight = windowHeight - headerHeight - controlPanelHeight - footerHeight;
-                const minHeight = 600; // 增加最小高度
-                const maxHeight = 900; // 增加最大高度
-                
-                const newHeight = Math.max(minHeight, Math.min(maxHeight, availableHeight));
-                
-                container.style.height = `${newHeight}px`;
-                console.log(`调整虚拟机列表容器高度: ${newHeight}px (窗口高度: ${windowHeight}px)`);
-                
-                // 强制触发滚动条检查
-                setTimeout(() => {
-                    checkScrollHint();
-                }, 100);
-            }
-        }
+
         
         // 窗口大小改变时重新调整高度
         window.addEventListener('resize', function() {
-            adjustVMListContainerHeight();
+            calculatePreciseContainerHeight();
         });
 
         // 设置事件监听器
@@ -999,6 +1013,10 @@
             // 检查是否需要显示滚动提示
             setTimeout(() => {
                 checkScrollHint();
+                // 精确计算容器高度以适应新的内容
+                calculatePreciseContainerHeight();
+                // 确保滚动到底部时内容完全可见
+                ensureBottomContentVisible();
                 console.log(`虚拟机列表更新完成，共 ${vms.length} 个虚拟机`);
             }, 100);
         }
@@ -1021,6 +1039,56 @@
                     scrollHint.style.display = 'none';
                     console.log('无滚动条，隐藏滚动提示');
                 }
+            }
+        }
+        
+        // 确保滚动到底部时内容完全可见
+        function ensureBottomContentVisible() {
+            const container = document.getElementById('vmListContainer');
+            if (container) {
+                // 监听滚动事件
+                container.addEventListener('scroll', function() {
+                    const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+                    if (isAtBottom) {
+                        // 如果滚动到底部，确保有足够的空间显示最后的内容
+                        const lastCard = container.querySelector('.vm-card:last-child');
+                        if (lastCard) {
+                            const lastCardBottom = lastCard.offsetTop + lastCard.offsetHeight;
+                            const containerBottom = container.scrollTop + container.clientHeight;
+                            
+                            if (lastCardBottom > containerBottom - 20) {
+                                // 如果最后一个卡片被部分遮挡，自动滚动一点
+                                container.scrollTop += 20;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // 精确计算容器高度，使用动态比例基于400px基础值
+        function calculatePreciseContainerHeight() {
+            const container = document.querySelector('.vm-list-container');
+            if (container) {
+                const windowHeight = window.innerHeight;
+                
+                // 根据窗口高度设置动态比例的基础值
+                let baseOffset = 400; // 默认基础偏移量
+                
+                if (windowHeight <= 600) {
+                    baseOffset = 300; // 小屏幕减少基础偏移量
+                } else if (windowHeight <= 800) {
+                    baseOffset = 350; // 中等屏幕
+                } else {
+                    baseOffset = 400; // 大屏幕
+                }
+                
+                const maxHeight = Math.max(200, windowHeight - baseOffset); // 确保最小高度为200px
+                
+                container.style.maxHeight = `${maxHeight}px`;
+                container.style.height = 'auto';
+                
+                console.log(`动态比例计算容器高度: 窗口高度=${windowHeight}px, 基础偏移量=${baseOffset}px, 最大高度=${maxHeight}px`);
             }
         }
 
