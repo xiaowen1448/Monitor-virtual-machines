@@ -509,6 +509,26 @@
                                         </select>
                                     </div>
                                 </div>
+
+                                <div class="d-flex align-items-center mt-2">
+                                    <div class="form-check form-switch me-3">
+                                        <input class="form-check-input" type="checkbox" id="autoDeleteToggle">
+                                        <label class="form-check-label" for="autoDeleteToggle">
+                                            自动删除虚拟机
+                                        </label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <label class="form-label mb-0 me-2 small">启动次数:</label>
+                                        <select id="autoDeleteCount" class="form-select form-select-sm" style="width: 80px;">
+                                            <option value="5">5次</option>
+                                            <option value="10" selected>10次</option>
+                                            <option value="15">15次</option>
+                                            <option value="20">20次</option>
+                                            <option value="30">30次</option>
+                                            <option value="50">50次</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="alert alert-info mb-0">
@@ -727,6 +747,7 @@
             loadMonitorStatus();
             loadVboxDirConfig();
             loadAutoMonitorConfig();
+            loadAutoDeleteConfig();
             loadWebRefreshConfig();
             setupEventListeners();
             
@@ -856,15 +877,62 @@
                 
                 console.log(`自动监控按钮状态变更: ${enabled ? '开启' : '关闭'}`);
                 
+                // 如果监控被禁用，同时禁用自启动和自动删除功能
+                if (!enabled) {
+                    console.log('监控被禁用，同时禁用自启动和自动删除功能');
+                    
+                    // 禁用自启动虚拟机按钮
+                    const autoStartToggle = document.getElementById('autoStartToggle');
+                    if (autoStartToggle.checked) {
+                        autoStartToggle.checked = false;
+                        console.log('已禁用自启动虚拟机按钮');
+                    }
+                    
+                    // 禁用自动删除按钮
+                    const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                    if (autoDeleteToggle.checked) {
+                        autoDeleteToggle.checked = false;
+                        console.log('已禁用自动删除按钮');
+                    }
+                    
+                    // 保存自启动配置
+                    updateConfigParameter('AUTO_START_VM_BUTTON_ENABLED', false).then(() => {
+                        console.log('自启动配置已更新为禁用');
+                    }).catch(error => {
+                        console.error('保存自启动配置失败:', error);
+                    });
+                    
+                    // 保存自动删除配置
+                    saveAutoDeleteConfig();
+                } else {
+                    // 如果监控被启用，检查是否需要启用相关功能
+                    const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                    const autoStartToggle = document.getElementById('autoStartToggle');
+                    
+                    // 如果自动删除被启用，确保自启动也被启用
+                    if (autoDeleteToggle.checked && !autoStartToggle.checked) {
+                        console.log('自动删除已启用，自动启用自启动功能');
+                        autoStartToggle.checked = true;
+                        autoStartToggle.dispatchEvent(new Event('change'));
+                    }
+                }
+                
                 // 直接更新配置文件中的AUTO_MONITOR_BUTTON_ENABLED
                 updateConfigParameter('AUTO_MONITOR_BUTTON_ENABLED', enabled).then(() => {
-                    // 配置更新成功后，延迟重新加载配置以确保UI状态正确
-                    console.log('自动监控按钮状态已更新，延迟重新加载自动监控配置...');
+                    console.log('自动监控按钮状态已更新');
                     updateConfigStatus('同步中...', '配置已更新，正在重新加载');
+                    
+                    // 延迟重新加载配置以确保UI状态正确
                     setTimeout(() => {
                         loadAutoMonitorConfig();
                         updateConfigStatus('已同步', '配置重新加载完成');
                     }, 500); // 延迟500ms确保配置已写入
+                }).catch(error => {
+                    console.error('保存自动监控配置失败:', error);
+                    // 如果保存失败，恢复按钮状态
+                    this.checked = !enabled;
+                    showAlert('danger', '保存自动监控配置失败');
+                    updateConfigStatus('同步失败', '配置保存失败');
                 });
                 
                 if (enabled) {
@@ -928,6 +996,14 @@
                 const monitoringToggle = document.getElementById('monitoringToggle');
                 
                 console.log(`自启动虚拟机按钮状态变更: ${enabled ? '开启' : '关闭'}`);
+                
+                // 检查监控状态，如果监控未启用，不允许启用自启动
+                if (enabled && !monitoringToggle.checked) {
+                    console.log('监控未启用，不允许启用自启动功能');
+                    this.checked = false;
+                    showAlert('warning', '请先启用自动监控功能');
+                    return;
+                }
                 
                 // 直接更新配置文件中的AUTO_START_VM_BUTTON_ENABLED
                 updateConfigParameter('AUTO_START_VM_BUTTON_ENABLED', enabled).then(() => {
@@ -1000,6 +1076,45 @@
                     console.error('更新自启动数量失败:', error);
                     updateConfigStatus('同步失败', '自启动数量更新失败');
                 });
+            });
+
+            // 自动删除开关
+            document.getElementById('autoDeleteToggle').addEventListener('change', function() {
+                const enabled = this.checked;
+                const monitoringToggle = document.getElementById('monitoringToggle');
+                const autoStartToggle = document.getElementById('autoStartToggle');
+                
+                console.log(`自动删除虚拟机按钮状态变更: ${enabled ? '开启' : '关闭'}`);
+                
+                // 如果启用自动删除，检查依赖条件
+                if (enabled) {
+                    // 检查自动监控状态
+                    if (!monitoringToggle.checked) {
+                        console.log('启用自动删除时，自动监控必须启用');
+                        showAlert('danger', '无法勾选自动删除虚拟机，请先启用自动监控功能');
+                        // 取消勾选
+                        this.checked = false;
+                        return;
+                    }
+                    
+                    // 检查自启动虚拟机状态
+                    if (!autoStartToggle.checked) {
+                        console.log('启用自动删除时，建议启用自启动虚拟机');
+                        showAlert('warning', '建议同时启用自启动虚拟机功能以确保自动删除正常工作');
+                    }
+                }
+                
+                // 保存自动删除配置
+                saveAutoDeleteConfig();
+            });
+
+            // 自动删除次数下拉选择器
+            document.getElementById('autoDeleteCount').addEventListener('change', function() {
+                const count = parseInt(this.value);
+                console.log(`自动删除次数变更: ${count}`);
+                
+                // 保存自动删除配置
+                saveAutoDeleteConfig();
             });
 
             // 日志查看按钮
@@ -1542,6 +1657,12 @@
                                     </small><br>
                                     <small class="text-muted">
                                         <i class="fas fa-clock me-1"></i>最后检查: ${formatTime(vm.last_check)}
+                                    </small><br>
+                                    <small class="text-info">
+                                        <i class="fas fa-play me-1"></i>启动次数: ${vm.start_count || 0}
+                                    </small>
+                                    <small class="text-warning">
+                                        <i class="fas fa-trash me-1"></i>删除阈值: ${vm.delete_threshold || 10}
                                     </small>
                                     ${hasStartFailure ? `<br><small class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>启动失败 (${vm.failure_count || 1}次)</small>` : ''}
                                     ${hasException ? `<br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>操作异常 (${vm.exception_count || 1}次)</small>` : ''}
@@ -1564,6 +1685,12 @@
                                             <i class="fas fa-times"></i>
                                         </button>
                                         ` : ''}
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="resetVMStartCount('${vm.name}')" title="重置启动次数">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteVM('${vm.name}')" title="删除虚拟机">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -2284,12 +2411,141 @@
                         startMonitoring(interval, autoStart, false); // 不显示通知
                     } else {
                         console.log('自动监控未启用');
+                        
+                        // 如果监控未启用，确保自启动和自动删除也被禁用
+                        if (autoStartToggle.checked) {
+                            console.log('监控未启用，禁用自启动功能');
+                            autoStartToggle.checked = false;
+                        }
+                        
+                        // 获取自动删除按钮并禁用
+                        const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                        if (autoDeleteToggle && autoDeleteToggle.checked) {
+                            console.log('监控未启用，禁用自动删除功能');
+                            autoDeleteToggle.checked = false;
+                        }
+                    }
+                    
+                    // 检查依赖关系 - 只在加载时检查，不强制启用
+                    const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                    if (autoDeleteToggle && autoDeleteToggle.checked) {
+                        console.log('检测到自动删除已启用，但允许用户手动控制自动监控状态');
+                        // 不再强制启用自动监控，让用户自己决定
                     }
                 } else {
                     console.error('获取自动监控配置失败:', data.message);
                 }
             } catch (error) {
                 console.error('获取自动监控配置失败:', error);
+            }
+        }
+
+        // 加载自动删除配置
+        async function loadAutoDeleteConfig() {
+            try {
+                console.log('开始加载自动删除配置...');
+                const response = await fetch('/api/auto_delete/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.config;
+                    console.log('=== 自动删除配置调试信息 ===');
+                    console.log('API返回的完整配置:', config);
+                    console.log('enabled:', config.enabled);
+                    console.log('max_count:', config.max_count);
+                    console.log('backup_dir:', config.backup_dir);
+                    console.log('================================');
+                    
+                    // 设置默认值
+                    const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                    const autoDeleteCount = document.getElementById('autoDeleteCount');
+                    
+                    // 临时禁用change事件监听器，避免触发自动保存
+                    const originalAutoDeleteHandler = autoDeleteToggle.onchange;
+                    const originalAutoDeleteCountHandler = autoDeleteCount.onchange;
+                    autoDeleteToggle.onchange = null;
+                    autoDeleteCount.onchange = null;
+                    
+                    // 检查监控状态，如果监控未启用，强制禁用自动删除
+                    const monitoringToggle = document.getElementById('monitoringToggle');
+                    const shouldEnableAutoDelete = config.enabled && monitoringToggle.checked;
+                    
+                    // 设置自动删除按钮状态
+                    autoDeleteToggle.checked = shouldEnableAutoDelete;
+                    console.log('设置自动删除按钮状态:', shouldEnableAutoDelete);
+                    
+                    // 设置自动删除次数
+                    const maxCount = config.max_count || 10;
+                    autoDeleteCount.value = maxCount;
+                    console.log('设置自动删除次数:', maxCount);
+                    
+                    // 恢复change事件监听器
+                    autoDeleteToggle.onchange = originalAutoDeleteHandler;
+                    autoDeleteCount.onchange = originalAutoDeleteCountHandler;
+                    
+                    console.log('自动删除配置加载完成，UI已更新');
+                    
+                    // 如果监控未启用但配置显示启用，更新配置文件并显示提示
+                    if (config.enabled && !monitoringToggle.checked) {
+                        console.log('监控未启用但自动删除配置为启用，更新配置文件');
+                        showAlert('warning', '监控未启用，自动删除功能已被禁用');
+                        saveAutoDeleteConfig();
+                    }
+                } else {
+                    console.error('获取自动删除配置失败:', data.message);
+                }
+            } catch (error) {
+                console.error('获取自动删除配置失败:', error);
+            }
+        }
+
+        // 保存自动删除配置
+        async function saveAutoDeleteConfig() {
+            try {
+                const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                const autoDeleteCount = document.getElementById('autoDeleteCount');
+                const monitoringToggle = document.getElementById('monitoringToggle');
+                
+                // 检查监控状态，如果监控未启用，强制禁用自动删除
+                let enabled = autoDeleteToggle.checked;
+                if (!monitoringToggle.checked) {
+                    enabled = false;
+                    console.log('监控未启用，强制禁用自动删除功能');
+                }
+                
+                const maxCount = parseInt(autoDeleteCount.value);
+                const backupDir = 'delete_bak';
+                
+                console.log('保存自动删除配置:', { enabled, maxCount, backupDir });
+                
+                const response = await fetch('/api/auto_delete/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enabled: enabled,
+                        max_count: maxCount,
+                        backup_dir: backupDir
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('自动删除配置保存成功');
+                    if (!monitoringToggle.checked && autoDeleteToggle.checked) {
+                        showAlert('warning', '监控未启用，自动删除功能已被禁用');
+                    } else {
+                        showAlert('success', '自动删除配置已保存');
+                    }
+                } else {
+                    console.error('保存自动删除配置失败:', data.message);
+                    showAlert('danger', '保存自动删除配置失败: ' + data.message);
+                }
+            } catch (error) {
+                console.error('保存自动删除配置失败:', error);
+                showAlert('danger', '保存自动删除配置失败: ' + error.message);
             }
         }
 

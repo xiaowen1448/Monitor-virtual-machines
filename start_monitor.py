@@ -39,6 +39,84 @@ def check_virtualbox():
     print("✗ 未找到VirtualBox，请确保已正确安装")
     return False
 
+def check_vbox_service_health():
+    """
+    检查VirtualBox服务是否健康可用
+    
+    Returns:
+        bool: 服务是否健康可用
+    """
+    print("=== 检查VirtualBox服务状态 ===")
+    
+    # 首先检查VBoxManage是否可用
+    vboxmanage_path = None
+    
+    # 尝试从PATH中找到VBoxManage
+    try:
+        result = subprocess.run(['VBoxManage', '--version'], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            vboxmanage_path = 'VBoxManage'
+            print(f"✓ 从PATH中找到VBoxManage，版本: {result.stdout.strip()}")
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    # 如果PATH中没有找到，检查常见安装路径
+    if not vboxmanage_path:
+        possible_paths = [
+            r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe",
+            r"C:\Program Files (x86)\Oracle\VirtualBox\VBoxManage.exe",
+            "/usr/bin/VBoxManage",
+            "/usr/local/bin/VBoxManage",
+            "/Applications/VirtualBox.app/Contents/MacOS/VBoxManage"
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                vboxmanage_path = path
+                print(f"✓ 找到VBoxManage: {path}")
+                break
+    
+    if not vboxmanage_path:
+        print("✗ 未找到VBoxManage，VirtualBox服务不可用")
+        return False
+    
+    # 检查VirtualBox服务响应性
+    print("正在检查VirtualBox服务响应性...")
+    try:
+        # 尝试执行一个简单的VBoxManage命令
+        result = subprocess.run(
+            [vboxmanage_path, 'list', 'vms'],
+            capture_output=True, timeout=15
+        )
+        
+        if result.returncode == 0:
+            try:
+                stdout = result.stdout.decode('utf-8', errors='ignore')
+                stderr = result.stderr.decode('utf-8', errors='ignore')
+                
+                # 检查输出是否正常
+                if stdout.strip() and not stderr.strip():
+                    print("✓ VirtualBox服务响应正常")
+                    print("✓ VirtualBox VMs 可用")
+                    return True
+                else:
+                    print("⚠ VirtualBox服务返回异常响应")
+                    return False
+            except:
+                print("⚠ VirtualBox服务响应解码失败")
+                return False
+        else:
+            print(f"✗ VirtualBox服务返回错误码: {result.returncode}")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        print("✗ VirtualBox服务响应超时")
+        return False
+    except Exception as e:
+        print(f"✗ 检查VirtualBox服务时出错: {e}")
+        return False
+
 def check_python_dependencies():
     """检查Python依赖"""
     required_packages = ['flask']
@@ -71,8 +149,8 @@ VBOX_DIR = ""
 # 留空则自动检测
 VBOXMANAGE_PATH = ""
 
-# 监控间隔（秒）
-MONITOR_INTERVAL = 60
+# 监控间隔（秒）- 使用配置文件中的AUTO_MONITOR_INTERVAL_VALUE
+MONITOR_INTERVAL = 30
 
 # Web服务端口
 WEB_PORT = 5000
@@ -137,8 +215,8 @@ AUTO_SCAN_ON_START = True
 # 是否在监控时显示详细状态
 SHOW_DETAILED_STATUS = True
 
-# Web界面自动刷新间隔（秒）
-AUTO_REFRESH_INTERVAL_VALUE = 30
+# Web界面自动刷新间隔（秒）- 使用配置文件中的AUTO_REFRESH_INTERVAL_VALUE
+AUTO_REFRESH_INTERVAL_VALUE = 600
 
 # 监控线程是否为守护线程
 MONITOR_THREAD_DAEMON = True
@@ -225,6 +303,18 @@ def main():
     
     print()
     
+    # 检查VirtualBox服务状态
+    if not check_vbox_service_health():
+        print("\n❌ VirtualBox服务不可用")
+        print("系统将尝试恢复VirtualBox服务...")
+        print("注意：如果VirtualBox VMs正常可用，系统不会进行重启和杀死进程操作")
+        print("如果服务异常，系统将尝试自动恢复")
+    else:
+        print("\n✅ VirtualBox VMs 正常可用")
+        print("系统将直接启动监控，不进行重启和杀死进程操作")
+    
+    print()
+    
     # 检查Python依赖
     if not check_python_dependencies():
         print("\n请安装缺失的依赖包后重新运行此脚本")
@@ -235,7 +325,7 @@ def main():
     # 创建配置文件
     create_config()
     
-    print
+    print()
     print("=== 启动监控系统 ===")
     
     # 启动Web应用

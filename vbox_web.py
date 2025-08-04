@@ -113,6 +113,19 @@ def update_config_value(key, value):
             logger.info(f"当前配置项值: {current_value}")
         else:
             logger.warning(f"未找到配置项 {key} 的当前值")
+            # 尝试更宽松的匹配
+            for i, line in enumerate(content.split('\n')):
+                if key in line and '=' in line:
+                    logger.info(f"找到包含 {key} 的行 {i+1}: {line.strip()}")
+                    break
+        
+        # 查找当前配置项的值
+        current_match = re.search(pattern, content, flags=re.MULTILINE)
+        if current_match:
+            current_value = current_match.group(0)
+            logger.info(f"当前配置项值: {current_value}")
+        else:
+            logger.warning(f"未找到配置项 {key} 的当前值")
         
         # 使用多行模式匹配
         new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
@@ -497,9 +510,11 @@ def api_get_vms():
         vm_list = monitor.get_all_vm_status(scan_status=scan_status)
         logger.debug(f"获取到 {len(vm_list)} 个虚拟机状态")
         
-        # 详细记录每个虚拟机的状态
+        # 为每个虚拟机添加启动次数和删除阈值信息
         for vm in vm_list:
-            logger.debug(f"虚拟机: {vm['name']}, 状态: {vm['status']}, UUID: {vm['uuid']}")
+            vm['start_count'] = monitor.get_vm_start_count(vm['name'])
+            vm['delete_threshold'] = monitor.max_start_count
+            logger.debug(f"虚拟机: {vm['name']}, 状态: {vm['status']}, UUID: {vm['uuid']}, 启动次数: {vm['start_count']}")
         
         response_data = {
             'success': True,
@@ -645,7 +660,9 @@ def api_start_monitoring():
                 'message': '监控器未初始化'
             })
         
-        interval = request.args.get('interval', 30, type=int)
+        # 从配置文件获取默认间隔
+        from config import AUTO_MONITOR_INTERVAL_VALUE
+        interval = request.args.get('interval', AUTO_MONITOR_INTERVAL_VALUE, type=int)
         auto_start = request.args.get('auto_start', 'true').lower() == 'true'
         start_time = request.args.get('start_time', None)
         
@@ -1178,6 +1195,7 @@ def api_get_all_exceptions():
 @login_required
 def api_get_auto_monitor_config():
     """获取自动监控配置"""
+    # 降低日志级别，减少频繁调用的日志输出
     logger.debug("API调用: /api/config/auto_monitor - 获取自动监控配置")
     try:
         # 强制重新加载配置模块以避免缓存问题
@@ -1268,7 +1286,9 @@ def api_save_auto_monitor_config():
         
         # 验证配置参数
         enabled = data.get('enabled', True)
-        interval = data.get('interval', 30)
+        # 从配置文件获取默认间隔
+        from config import AUTO_MONITOR_INTERVAL_VALUE
+        interval = data.get('interval', AUTO_MONITOR_INTERVAL_VALUE)
         auto_start_enabled = data.get('auto_start_enabled', True)
         
         logger.info(f"解析后的配置参数:")
@@ -1326,6 +1346,7 @@ def api_save_auto_monitor_config():
 @login_required
 def api_get_web_refresh_config():
     """获取Web自动刷新配置"""
+    # 降低日志级别，减少频繁调用的日志输出
     logger.debug("API调用: /api/config/web_refresh - 获取Web自动刷新配置")
     try:
         # 强制重新加载配置模块以避免缓存问题
@@ -1384,6 +1405,7 @@ def api_get_web_refresh_config():
 @login_required
 def api_update_web_refresh_interval():
     """更新Web自动刷新配置"""
+    # 降低日志级别，减少频繁调用的日志输出
     logger.debug("API调用: /api/config/web_refresh - 更新Web自动刷新配置")
     try:
         data = request.get_json()
@@ -1395,7 +1417,9 @@ def api_update_web_refresh_interval():
             })
         
         enabled = data.get('enabled', False)
-        interval = data.get('interval', 30)
+        # 从配置文件获取默认间隔
+        from config import AUTO_REFRESH_INTERVAL_VALUE
+        interval = data.get('interval', AUTO_REFRESH_INTERVAL_VALUE)
         logger.info(f"收到Web自动刷新配置更新请求: 启用={enabled}, 间隔={interval}秒")
         
         # 直接更新配置文件中的AUTO_REFRESH_BUTTON_ENABLED
@@ -1590,6 +1614,28 @@ def api_update_config_parameter():
                 'success': False,
                 'message': '缺少参数名或值'
             })
+        
+        # 确保布尔值被正确处理
+        if parameter_name in ['AUTO_MONITOR_BUTTON_ENABLED', 'AUTO_START_VM_BUTTON_ENABLED', 'AUTO_DELETE_ENABLED']:
+            logger.info(f"处理布尔值参数: {parameter_name}, 原始值: {value} (类型: {type(value)})")
+            
+            if isinstance(value, bool):
+                # 已经是布尔值，保持不变
+                logger.info(f"值已经是布尔类型: {value}")
+            elif isinstance(value, str):
+                # 字符串转换为布尔值
+                value = value.lower() in ['true', '1', 'yes', 'on']
+                logger.info(f"字符串转换为布尔值: {value}")
+            elif isinstance(value, int):
+                # 整数转换为布尔值
+                value = bool(value)
+                logger.info(f"整数转换为布尔值: {value}")
+            else:
+                # 其他类型转换为布尔值
+                value = bool(value)
+                logger.info(f"其他类型转换为布尔值: {value}")
+            
+            logger.info(f"最终布尔值: {value} (类型: {type(value)})")
         
         logger.info(f"=== 前台参数更新调试信息 ===")
         logger.info(f"收到前台参数更新请求: {parameter_name} = {value}")
@@ -1914,6 +1960,91 @@ def api_get_monitor_logs_stream():
             'success': False,
             'message': f'获取监控日志流失败: {str(e)}'
         })
+
+@app.route('/api/auto_delete/config')
+@login_required
+def api_get_auto_delete_config():
+    """获取自动删除配置"""
+    try:
+        # 从配置文件读取配置
+        from config import AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT, AUTO_DELETE_BACKUP_DIR
+        config = {
+            'enabled': AUTO_DELETE_ENABLED,
+            'max_count': AUTO_DELETE_MAX_COUNT,
+            'backup_dir': AUTO_DELETE_BACKUP_DIR
+        }
+        return jsonify({'success': True, 'config': config})
+    except Exception as e:
+        logger.error(f"获取自动删除配置失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/auto_delete/config', methods=['POST'])
+@login_required
+def api_save_auto_delete_config():
+    """保存自动删除配置"""
+    try:
+        data = request.get_json()
+        enabled = data.get('enabled', False)
+        max_count = data.get('max_count', 10)
+        backup_dir = data.get('backup_dir', 'delete_bak')
+        
+        # 更新配置文件
+        success = True
+        success &= update_config_value('AUTO_DELETE_ENABLED', enabled)
+        success &= update_config_value('AUTO_DELETE_MAX_COUNT', max_count)
+        success &= update_config_value('AUTO_DELETE_BACKUP_DIR', backup_dir)
+        
+        if success:
+            # 更新监控器中的配置
+            monitor = get_vbox_monitor()
+            monitor.set_auto_delete_config(enabled, max_count, backup_dir)
+            
+            return jsonify({'success': True, 'message': '自动删除配置已保存'})
+        else:
+            return jsonify({'success': False, 'error': '配置更新失败'})
+    except Exception as e:
+        logger.error(f"保存自动删除配置失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/vm/<vm_name>/start_count')
+@login_required
+def api_get_vm_start_count(vm_name):
+    """获取虚拟机启动次数"""
+    try:
+        monitor = get_vbox_monitor()
+        count = monitor.get_vm_start_count(vm_name)
+        return jsonify({'success': True, 'start_count': count})
+    except Exception as e:
+        logger.error(f"获取虚拟机启动次数失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/vm/<vm_name>/reset_count', methods=['POST'])
+@login_required
+def api_reset_vm_start_count(vm_name):
+    """重置虚拟机启动次数"""
+    try:
+        monitor = get_vbox_monitor()
+        monitor.vm_start_counts[vm_name] = 0
+        monitor.save_vm_config()
+        return jsonify({'success': True, 'message': f'虚拟机 {vm_name} 启动次数已重置'})
+    except Exception as e:
+        logger.error(f"重置虚拟机启动次数失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/vm/<vm_name>/delete', methods=['POST'])
+@login_required
+def api_manual_delete_vm(vm_name):
+    """手动删除虚拟机"""
+    try:
+        monitor = get_vbox_monitor()
+        success = monitor.auto_delete_vm(vm_name)
+        if success:
+            return jsonify({'success': True, 'message': f'虚拟机 {vm_name} 已删除'})
+        else:
+            return jsonify({'success': False, 'error': f'删除虚拟机 {vm_name} 失败'})
+    except Exception as e:
+        logger.error(f"手动删除虚拟机失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 # 在模块导入时初始化监控器
 if not init_monitor():

@@ -147,8 +147,7 @@ VBOX_START_TYPE = "headless"
 # 监控虚拟机状态功能
 ENABLE_VM_STATUS_MONITORING = True
 
-# 监控虚拟机状态间隔（秒）
-VM_STATUS_MONITOR_INTERVAL = 30
+
 
 # 是否在Web界面显示监控虚拟机状态按钮
 SHOW_VM_STATUS_MONITOR_BUTTON = True
@@ -179,8 +178,7 @@ SHOW_DIRECTORY_SELECTION = True
 # 监控配置
 ENABLE_REALTIME_STATUS_MONITORING = True
 
-# 状态监控更新间隔（秒）
-STATUS_UPDATE_INTERVAL = 15
+
 
 # 是否在状态变化时发送通知
 ENABLE_STATUS_CHANGE_NOTIFICATIONS = True
@@ -211,17 +209,23 @@ AUTO_REFRESH_BUTTON_ENABLED = False
 AUTO_REFRESH_INTERVAL_VALUE = 600
 
 # 自动监控按钮开启状态（对应页面上的自动监控开关）
-AUTO_MONITOR_BUTTON_ENABLED = True
+AUTO_MONITOR_BUTTON_ENABLED = False
 
 # 自动监控下拉时间数值（对应页面上的监控时间选择器）
 AUTO_MONITOR_INTERVAL_VALUE = 30
 
 # 自启动虚拟机按钮开启状态（对应页面上的自启动开关）
-AUTO_START_VM_BUTTON_ENABLED = True
+AUTO_START_VM_BUTTON_ENABLED = False
 
 # 是否启用自动启动已停止的虚拟机功能
 AUTO_START_STOPPED_VMS = True
 
 #  自动启动已停止的虚拟机数量，建议不要超出物理内存90%，总量/单个虚拟机内存大小
-AUTO_START_STOPPED_NUM = 1
+AUTO_START_STOPPED_NUM = 2
+
+# 自动删除虚拟机配置
+AUTO_DELETE_ENABLED = False
+AUTO_DELETE_MAX_COUNT = 10
+AUTO_DELETE_BACKUP_DIR = "delete_bak"
+
 
