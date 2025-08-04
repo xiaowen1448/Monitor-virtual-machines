@@ -60,11 +60,19 @@ def reload_config():
 def update_config_value(key, value):
     """更新配置文件中的特定值"""
     try:
+        logger.info(f"=== 配置文件更新调试信息 ===")
+        logger.info(f"开始更新配置文件参数: {key} = {value}")
+        logger.info(f"参数类型: {type(value)}")
+        logger.info(f"更新时间: {datetime.now().isoformat()}")
+        
         config_file = 'config.py'
         
         # 读取当前配置文件
         with open(config_file, 'r', encoding='utf-8') as f:
             content = f.read()
+        
+        logger.info(f"配置文件路径: {config_file}")
+        logger.info(f"配置文件大小: {len(content)} 字符")
         
         # 使用正则表达式查找并替换配置项
         import re
@@ -98,6 +106,14 @@ def update_config_value(key, value):
         logger.debug(f"使用模式: {pattern}")
         logger.debug(f"替换为: {replacement}")
         
+        # 查找当前配置项的值
+        current_match = re.search(pattern, content, flags=re.MULTILINE)
+        if current_match:
+            current_value = current_match.group(0)
+            logger.info(f"当前配置项值: {current_value}")
+        else:
+            logger.warning(f"未找到配置项 {key} 的当前值")
+        
         # 使用多行模式匹配
         new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
         
@@ -107,6 +123,7 @@ def update_config_value(key, value):
             updated = False
             for i, line in enumerate(lines):
                 if line.strip().startswith(f'{key} ='):
+                    old_value = line.strip()
                     if isinstance(value, bool):
                         lines[i] = f'{key} = {value}'
                     elif isinstance(value, str):
@@ -116,7 +133,8 @@ def update_config_value(key, value):
                     else:
                         lines[i] = f'{key} = {repr(value)}'
                     updated = True
-                    logger.debug(f"使用简单替换更新配置项 {key} 在第 {i+1} 行")
+                    logger.info(f"使用简单替换更新配置项 {key}")
+                    logger.info(f"第 {i+1} 行: {old_value} -> {lines[i]}")
                     break
             
             if updated:
@@ -132,6 +150,7 @@ def update_config_value(key, value):
         # 验证更新后的配置是否有语法错误
         try:
             compile(new_content, config_file, 'exec')
+            logger.info("配置文件语法验证通过")
         except SyntaxError as e:
             logger.error(f"配置更新后产生语法错误: {e}")
             return False
@@ -140,10 +159,13 @@ def update_config_value(key, value):
         with open(config_file, 'w', encoding='utf-8') as f:
             f.write(new_content)
         
-        logger.info(f"配置项 {key} 已更新为 {value}")
+        logger.info(f"配置文件更新成功: {key} = {value}")
+        logger.info(f"配置文件已保存到: {config_file}")
+        logger.info(f"=== 配置文件更新完成 ===")
         return True
     except Exception as e:
         logger.error(f"更新配置项 {key} 失败: {e}")
+        logger.error(f"错误详情: {str(e)}")
         return False
 
 def update_auto_monitor_config(enabled, interval, auto_start_enabled):
@@ -610,12 +632,6 @@ def api_restart_vm(vm_name):
             'message': f'强制重启虚拟机失败: {str(e)}'
         })
 
-
-
-
-
-
-
 @app.route('/api/monitor/start')
 @login_required
 def api_start_monitoring():
@@ -632,6 +648,17 @@ def api_start_monitoring():
         interval = request.args.get('interval', 30, type=int)
         auto_start = request.args.get('auto_start', 'true').lower() == 'true'
         start_time = request.args.get('start_time', None)
+        
+        logger.info(f"=== 监控启动调试信息 ===")
+        logger.info(f"收到前台监控启动请求")
+        logger.info(f"前台传递的参数:")
+        logger.info(f"  - interval: {interval} (类型: {type(interval)})")
+        logger.info(f"  - auto_start: {auto_start} (类型: {type(auto_start)})")
+        logger.info(f"  - start_time: {start_time}")
+        logger.info(f"原始请求参数: {dict(request.args)}")
+        logger.info(f"请求来源: {request.remote_addr}")
+        logger.info(f"请求时间: {datetime.now().isoformat()}")
+        logger.info(f"================================")
         
         logger.info(f"启动监控: 间隔={interval}秒, 自动启动={auto_start}")
         logger.debug(f"监控启动请求参数: interval={interval}, auto_start={auto_start}, start_time={start_time}")
@@ -1165,7 +1192,8 @@ def api_get_auto_monitor_config():
         from config import (
             AUTO_MONITOR_BUTTON_ENABLED,
             AUTO_MONITOR_INTERVAL_VALUE,
-            AUTO_START_VM_BUTTON_ENABLED
+            AUTO_START_VM_BUTTON_ENABLED,
+            AUTO_START_STOPPED_NUM
         )
         
         # 打印调试信息
@@ -1173,6 +1201,7 @@ def api_get_auto_monitor_config():
         logger.info(f"AUTO_MONITOR_BUTTON_ENABLED: {AUTO_MONITOR_BUTTON_ENABLED}")
         logger.info(f"AUTO_MONITOR_INTERVAL_VALUE: {AUTO_MONITOR_INTERVAL_VALUE}")
         logger.info(f"AUTO_START_VM_BUTTON_ENABLED: {AUTO_START_VM_BUTTON_ENABLED}")
+        logger.info(f"AUTO_START_STOPPED_NUM: {AUTO_START_STOPPED_NUM}")
         logger.info("================================")
         
         response_data = {
@@ -1180,7 +1209,8 @@ def api_get_auto_monitor_config():
             'data': {
                 'button_enabled': AUTO_MONITOR_BUTTON_ENABLED,
                 'interval_value': AUTO_MONITOR_INTERVAL_VALUE,
-                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED
+                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED,
+                'auto_start_stopped_num': AUTO_START_STOPPED_NUM
             },
             'message': '获取自动监控配置成功',
             'timestamp': datetime.now().isoformat()
@@ -1194,13 +1224,15 @@ def api_get_auto_monitor_config():
         AUTO_MONITOR_BUTTON_ENABLED = False
         AUTO_MONITOR_INTERVAL_VALUE = 30
         AUTO_START_VM_BUTTON_ENABLED = False
+        AUTO_START_STOPPED_NUM = 4
         
         response_data = {
             'success': True,
             'data': {
                 'button_enabled': AUTO_MONITOR_BUTTON_ENABLED,
                 'interval_value': AUTO_MONITOR_INTERVAL_VALUE,
-                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED
+                'auto_start_button_enabled': AUTO_START_VM_BUTTON_ENABLED,
+                'auto_start_stopped_num': AUTO_START_STOPPED_NUM
             },
             'message': '获取自动监控配置成功',
             'timestamp': datetime.now().isoformat()
@@ -1228,12 +1260,22 @@ def api_save_auto_monitor_config():
                 'message': '缺少配置数据'
             })
         
-        logger.info(f"收到配置更新请求: {data}")
+        logger.info(f"=== 自动监控配置保存调试信息 ===")
+        logger.info(f"收到前台自动监控配置保存请求")
+        logger.info(f"前台传递的完整数据: {data}")
+        logger.info(f"请求来源: {request.remote_addr}")
+        logger.info(f"请求时间: {datetime.now().isoformat()}")
         
         # 验证配置参数
         enabled = data.get('enabled', True)
         interval = data.get('interval', 30)
         auto_start_enabled = data.get('auto_start_enabled', True)
+        
+        logger.info(f"解析后的配置参数:")
+        logger.info(f"  - enabled: {enabled} (类型: {type(enabled)})")
+        logger.info(f"  - interval: {interval} (类型: {type(interval)})")
+        logger.info(f"  - auto_start_enabled: {auto_start_enabled} (类型: {type(auto_start_enabled)})")
+        logger.info(f"================================")
         
         logger.debug(f"配置参数: enabled={enabled}, interval={interval}, auto_start_enabled={auto_start_enabled}")
         
@@ -1549,17 +1591,25 @@ def api_update_config_parameter():
                 'message': '缺少参数名或值'
             })
         
-        logger.info(f"收到配置参数更新请求: {parameter_name} = {value}")
+        logger.info(f"=== 前台参数更新调试信息 ===")
+        logger.info(f"收到前台参数更新请求: {parameter_name} = {value}")
+        logger.info(f"参数类型: {type(value)}")
+        logger.info(f"请求来源: {request.remote_addr}")
+        logger.info(f"请求时间: {datetime.now().isoformat()}")
+        logger.info(f"请求头信息: {dict(request.headers)}")
+        logger.info(f"完整请求数据: {data}")
+        logger.info(f"================================")
         
         # 使用update_config_value函数更新配置文件
         if update_config_value(parameter_name, value):
-            logger.info(f"配置参数 {parameter_name} 更新成功")
+            logger.info(f"配置参数 {parameter_name} 更新成功，新值: {value}")
             response_data = {
                 'success': True,
                 'message': f'配置参数 {parameter_name} 更新成功',
                 'data': {
                     'parameter': parameter_name,
-                    'value': value
+                    'value': value,
+                    'timestamp': datetime.now().isoformat()
                 },
                 'timestamp': datetime.now().isoformat()
             }

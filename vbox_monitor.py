@@ -818,6 +818,97 @@ class VirtualBoxMonitor:
         monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
         monitor_logger.info(f"虚拟机状态列表: {[(vm['name'], vm['status']) for vm in vm_status_list]}")
         
+        # 强制重新加载配置文件以确保获取最新的AUTO_START_STOPPED_NUM
+        try:
+            import importlib
+            import sys
+            if 'config' in sys.modules:
+                importlib.reload(sys.modules['config'])
+                monitor_logger.info("已重新加载config模块以确保获取最新配置")
+        except Exception as e:
+            monitor_logger.warning(f"重新加载config模块失败: {e}")
+        
+        # 获取配置的启动数量
+        try:
+            from config import AUTO_START_STOPPED_NUM
+            max_start_num = AUTO_START_STOPPED_NUM
+            monitor_logger.info(f"成功从配置文件读取AUTO_START_STOPPED_NUM: {max_start_num}")
+        except ImportError:
+            max_start_num = 4  # 默认值
+            logger.warning("无法导入AUTO_START_STOPPED_NUM配置，使用默认值4")
+            monitor_logger.warning("无法导入AUTO_START_STOPPED_NUM配置，使用默认值4")
+        
+        monitor_logger.info(f"配置的自动启动数量: {max_start_num}")
+        logger.info(f"自动启动数量限制: {max_start_num}")
+        
+        # 统计当前运行中的虚拟机数量
+        running_vms = [vm for vm in vm_status_list if vm['status'] == 'running']
+        running_count = len(running_vms)
+        monitor_logger.info(f"当前运行中的虚拟机数量: {running_count}")
+        logger.info(f"当前运行中的虚拟机数量: {running_count}")
+        
+        # 检查是否需要停止多余的虚拟机
+        if running_count > max_start_num:
+            excess_count = running_count - max_start_num
+            monitor_logger.info(f"当前运行中的虚拟机数量({running_count})超过设定数量({max_start_num})，需要停止 {excess_count} 个虚拟机")
+            logger.info(f"当前运行中的虚拟机数量({running_count})超过设定数量({max_start_num})，需要停止 {excess_count} 个虚拟机")
+            
+            # 停止多余的虚拟机
+            stopped_count = 0
+            for vm in running_vms:
+                if stopped_count >= excess_count:
+                    break
+                
+                # 检查是否为母盘虚拟机例外
+                if ENABLE_MASTER_VM_EXCEPTIONS:
+                    try:
+                        from config import MASTER_VM_EXCEPTIONS
+                        if vm['name'] in MASTER_VM_EXCEPTIONS:
+                            logger.info(f"虚拟机 {vm['name']} 在母盘虚拟机例外列表中，跳过停止操作")
+                            monitor_logger.info(f"虚拟机 {vm['name']} 在母盘虚拟机例外列表中，跳过停止操作")
+                            continue
+                    except ImportError:
+                        logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
+                        monitor_logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
+                
+                logger.info(f"准备停止第 {stopped_count + 1} 个虚拟机: {vm['name']}")
+                monitor_logger.info(f"准备停止第 {stopped_count + 1} 个虚拟机: {vm['name']}")
+                
+                success = self.stop_vm(vm['name'])
+                result = {
+                    'name': vm['name'],
+                    'original_status': vm['status'],
+                    'action': 'stop',
+                    'success': success,
+                    'timestamp': datetime.now().isoformat()
+                }
+                results.append(result)
+                stopped_count += 1
+                
+                if success:
+                    logger.info(f"自动停止虚拟机 {vm['name']} 成功 (第{stopped_count}个)")
+                    monitor_logger.info(f"自动停止虚拟机 {vm['name']} 成功 (第{stopped_count}个)")
+                else:
+                    logger.error(f"自动停止虚拟机 {vm['name']} 失败")
+                    monitor_logger.error(f"自动停止虚拟机 {vm['name']} 失败")
+            
+            monitor_logger.info(f"停止操作完成，共停止 {stopped_count} 个虚拟机")
+            logger.info(f"停止操作完成，共停止 {stopped_count} 个虚拟机")
+            return results
+        
+        # 检查是否已达到目标运行数量
+        if running_count >= max_start_num:
+            monitor_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
+            logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
+            return results
+        
+        # 计算还可以启动的虚拟机数量
+        remaining_slots = max_start_num - running_count
+        monitor_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
+        logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
+        
+        started_count = 0
+        
         for vm in vm_status_list:
             if vm['status'] in ['poweroff', 'aborted']:
                 logger.info(f"发现已停止的虚拟机: {vm['name']} (状态: {vm['status']})")
@@ -830,6 +921,13 @@ class VirtualBoxMonitor:
                     monitor_logger.info(f"自动启动功能已禁用，跳过虚拟机: {vm['name']}")
                     monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
                     continue
+                
+                # 检查是否已达到可启动数量限制
+                if started_count >= remaining_slots:
+                    logger.info(f"已达到可启动数量限制 {remaining_slots}，跳过剩余虚拟机")
+                    monitor_logger.info(f"已达到可启动数量限制 {remaining_slots}，跳过剩余虚拟机")
+                    monitor_logger.info(f"已启动数量: {started_count}, 可启动数量: {remaining_slots}")
+                    break
                 
                 # 检查是否为母盘虚拟机例外
                 if ENABLE_MASTER_VM_EXCEPTIONS:
@@ -844,6 +942,7 @@ class VirtualBoxMonitor:
                         monitor_logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
                 
                 monitor_logger.debug(f"尝试启动虚拟机: {vm['name']}")
+                logger.info(f"准备启动第 {started_count + 1} 个虚拟机: {vm['name']}")
                 success = self.start_vm(vm['name'])
                 result = {
                     'name': vm['name'],
@@ -853,17 +952,19 @@ class VirtualBoxMonitor:
                     'timestamp': datetime.now().isoformat()
                 }
                 results.append(result)
+                started_count += 1
                 
                 if success:
-                    logger.info(f"自动启动虚拟机 {vm['name']} 成功")
-                    monitor_logger.info(f"自动启动虚拟机 {vm['name']} 成功")
+                    logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count}个)")
+                    monitor_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count}个)")
                 else:
                     logger.error(f"自动启动虚拟机 {vm['name']} 失败")
                     monitor_logger.error(f"自动启动虚拟机 {vm['name']} 失败")
                     # 记录启动失败，供前端显示
                     self.mark_start_failure(vm['name'])
         
-        monitor_logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机")
+        monitor_logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机，启动数量限制: {max_start_num}, 当前运行中: {running_count}, 已启动: {started_count}")
+        logger.info(f"自动启动检查完成，共处理 {len(results)} 个虚拟机，启动数量限制: {max_start_num}, 当前运行中: {running_count}, 已启动: {started_count}")
         return results
     
     def start_monitoring(self, interval: int = 60, auto_start: bool = True, start_time: str = None):
@@ -892,6 +993,7 @@ class VirtualBoxMonitor:
         monitor_logger.info(f"自动监控启动时间: {self.monitor_start_time}")
         monitor_logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
         monitor_logger.info(f"监控配置详情: 间隔={interval}秒, 自动启动={auto_start}, 启动时间={self.monitor_start_time}")
+        monitor_logger.info(f"监控实例auto_start_enabled设置: {self.auto_start_enabled} (类型: {type(self.auto_start_enabled)})")
         
         def monitor_task():
             # 记录监控任务启动信息
@@ -954,6 +1056,7 @@ class VirtualBoxMonitor:
                         monitor_logger.info(f"发现 {len(stopped_vms)} 个已停止的虚拟机: {[vm['name'] for vm in stopped_vms]}")
                         
                         # 检查自动启动是否启用
+                        monitor_logger.info(f"检查自动启动状态: {self.auto_start_enabled} (类型: {type(self.auto_start_enabled)})")
                         if self.auto_start_enabled:
                             logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
                             monitor_logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
@@ -967,17 +1070,34 @@ class VirtualBoxMonitor:
                             self.last_monitor_results = results
                             
                             if results:
-                                success_count = sum(1 for r in results if r['success'])
-                                logger.info(f"本次检查启动了 {len(results)} 个虚拟机，成功 {success_count} 个")
-                                monitor_logger.info(f"本次检查启动了 {len(results)} 个虚拟机，成功 {success_count} 个")
+                                start_count = sum(1 for r in results if r['action'] == 'start' and r['success'])
+                                stop_count = sum(1 for r in results if r['action'] == 'stop' and r['success'])
+                                total_operations = len(results)
+                                
+                                if stop_count > 0:
+                                    logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
+                                    monitor_logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
+                                elif start_count > 0:
+                                    logger.info(f"本次检查启动了 {start_count} 个虚拟机")
+                                    monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机")
+                                else:
+                                    logger.info("所有虚拟机状态正常，无需操作")
+                                    monitor_logger.info("所有虚拟机状态正常，无需操作")
                                 
                                 # 记录详细的启动结果
                                 for result in results:
-                                    if result['success']:
-                                        monitor_logger.info(f"虚拟机 {result['name']} 启动成功")
-                                    else:
-                                        logger.warning(f"虚拟机 {result['name']} 启动失败")
-                                        monitor_logger.warning(f"虚拟机 {result['name']} 启动失败")
+                                    if result['action'] == 'start':
+                                        if result['success']:
+                                            monitor_logger.info(f"虚拟机 {result['name']} 启动成功")
+                                        else:
+                                            logger.warning(f"虚拟机 {result['name']} 启动失败")
+                                            monitor_logger.warning(f"虚拟机 {result['name']} 启动失败")
+                                    elif result['action'] == 'stop':
+                                        if result['success']:
+                                            monitor_logger.info(f"虚拟机 {result['name']} 停止成功")
+                                        else:
+                                            logger.warning(f"虚拟机 {result['name']} 停止失败")
+                                            monitor_logger.warning(f"虚拟机 {result['name']} 停止失败")
                             else:
                                 logger.info("所有虚拟机状态正常，无需启动")
                                 monitor_logger.info("所有虚拟机状态正常，无需启动")

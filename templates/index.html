@@ -13,7 +13,7 @@
         }
         
         .status-badge {
-            font-size: 0.8em;
+            font-size: 0.7em; /* 缩小状态徽章字体 */
         }
         .vm-card {
             transition: all 0.3s ease;
@@ -45,11 +45,11 @@
         /* 虚拟机列表容器样式 */
         .vm-list-container {
             height: auto; /* 自动适应高度 */
-            max-height: calc(100vh - 400px); /* 动态比例：视口高度减去400px基础值 */
+            max-height: calc(100vh - 500px); /* 增加基础值，确保100%比例下分页控件可见 */
             overflow-y: auto;
             overflow-x: hidden;
             padding: 1rem;
-            padding-bottom: 3rem; /* 增加底部内边距，确保最后一行内容完全可见 */
+            padding-bottom: 1rem; /* 减少底部内边距，因为有了分页控件 */
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
             background-color: #f8f9fa;
@@ -59,8 +59,8 @@
         /* 响应式高度调整 */
         @media (max-height: 800px) {
             .vm-list-container {
-                max-height: calc(100vh - 350px); /* 动态比例：视口高度减去350px基础值 */
-                padding-bottom: 2.5rem; /* 小屏幕下适当减少底部内边距 */
+                max-height: calc(100vh - 450px); /* 增加基础值，确保100%比例下分页控件可见 */
+                padding-bottom: 1rem; /* 减少底部内边距 */
             }
             .container-fluid {
                 height: calc(100vh - 15px);
@@ -70,8 +70,8 @@
         
         @media (max-height: 600px) {
             .vm-list-container {
-                max-height: calc(100vh - 300px); /* 动态比例：视口高度减去300px基础值 */
-                padding-bottom: 2rem; /* 更小屏幕下进一步减少底部内边距 */
+                max-height: calc(100vh - 400px); /* 增加基础值，确保100%比例下分页控件可见 */
+                padding-bottom: 1rem; /* 减少底部内边距 */
             }
             .container-fluid {
                 height: calc(100vh - 10px);
@@ -124,8 +124,55 @@
             background: linear-gradient(180deg, transparent 0%, #f8f9fa 50%);
             border-top: 1px solid #dee2e6;
             z-index: 10;
-            padding: 0.5rem 0;
-            margin-top: 0.5rem;
+            padding: 0.4rem 0; /* 减少内边距 */
+            margin-top: 0.3rem; /* 减少外边距 */
+            font-size: 0.75rem; /* 缩小字体 */
+        }
+        
+        /* 分页控件样式 */
+        .pagination .page-link {
+            color: #007bff;
+            border-color: #dee2e6;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .pagination .page-item.disabled .page-link {
+            color: #6c757d;
+            background-color: #fff;
+            border-color: #dee2e6;
+        }
+        
+        .pagination .page-link:hover {
+            color: #0056b3;
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+        }
+        
+        /* 确保分页控件始终可见 */
+        .d-flex.justify-content-between.align-items-center.mt-3 {
+            position: relative;
+            z-index: 100;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            margin-top: 0 !important;
+            padding-top: 0.75rem;
+        }
+        
+        /* 缩小分页控件的字体 */
+        .d-flex.justify-content-between.align-items-center.mt-3 .text-muted.small {
+            font-size: 0.8rem;
+        }
+        
+        .d-flex.justify-content-between.align-items-center.mt-3 .form-label.small {
+            font-size: 0.8rem;
+        }
+        
+        .d-flex.justify-content-between.align-items-center.mt-3 .form-select-sm {
+            font-size: 0.8rem;
         }
         
         /* 确保页面整体高度固定，留出底部间距 */
@@ -133,6 +180,15 @@
             height: calc(100vh - 20px);
             overflow: hidden;
             margin-bottom: 20px;
+        }
+        
+        /* 去掉右侧最外边滚动条 */
+        body {
+            overflow-x: hidden;
+        }
+        
+        html {
+            overflow-x: hidden;
         }
         
         /* 头部区域固定高度 */
@@ -167,31 +223,60 @@
             flex-wrap: wrap;
         }
         
+        /* 确保缩放后的卡片布局正确 */
         .vm-list-container .col-md-6,
         .vm-list-container .col-lg-4 {
-            padding: 0.5rem;
-            margin-bottom: 0.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .vm-list-container .vm-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .vm-list-container .col-md-6,
+        .vm-list-container .col-lg-4 {
+            padding: 0.3rem; /* 减少列间距 */
+            margin-bottom: 0.3rem; /* 减少底部间距 */
         }
         
         /* 虚拟机卡片在滚动容器中的样式优化 */
         .vm-list-container .vm-card {
             height: auto;
-            min-height: 120px;
-            margin-bottom: 0.5rem;
+            min-height: 100px; /* 减少最小高度 */
+            margin-bottom: 0.3rem; /* 减少卡片间距 */
+            transform: scale(0.9); /* 缩小显示比例到90% */
+            transform-origin: top left; /* 设置变换原点 */
         }
         
         /* 确保最后一个虚拟机卡片有足够的底部间距 */
         .vm-list-container .vm-card:last-child {
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem; /* 减少最后一个卡片的底部间距 */
         }
         
         /* 优化虚拟机卡片内容布局 */
         .vm-list-container .vm-card .card-body {
-            padding: 0.75rem;
+            padding: 0.5rem; /* 减少内边距 */
         }
         
         .vm-list-container .vm-card .card-header {
-            padding: 0.5rem 0.75rem;
+            padding: 0.4rem 0.5rem; /* 减少头部内边距 */
+        }
+        
+        /* 缩小虚拟机卡片内的字体 */
+        .vm-list-container .vm-card .card-header h6 {
+            font-size: 0.9rem; /* 缩小标题字体 */
+        }
+        
+        .vm-list-container .vm-card .card-body small {
+            font-size: 0.8rem; /* 缩小内容字体 */
+        }
+        
+        .vm-list-container .vm-card .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem; /* 缩小按钮 */
+            font-size: 0.8rem;
         }
         
         /* 空状态和加载状态的样式 */
@@ -365,26 +450,8 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>监控控制</h5>
                         <div>
-                            <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-sync-alt me-1"></i>刷新
-                            </button>
-                            <button id="viewLogsBtn" class="btn btn-outline-info btn-sm ms-2">
+                            <button id="viewLogsBtn" class="btn btn-outline-info btn-sm">
                                 <i class="fas fa-terminal me-1"></i>查看日志
-                            </button>
-                            <button id="scanBtn" class="btn btn-outline-info btn-sm ms-2">
-                                <i class="fas fa-search me-1"></i>扫描
-                            </button>
-                            <button id="reloadConfigBtn" class="btn btn-outline-warning btn-sm ms-2" onclick="reloadAllConfigs()" title="重新加载配置">
-                                <i class="fas fa-cog me-1"></i>重载配置
-                            </button>
-                            <button id="checkConfigBtn" class="btn btn-outline-info btn-sm ms-2" onclick="checkAndUpdateConfigs()" title="立即检查配置">
-                                <i class="fas fa-sync-alt me-1"></i>检查配置
-                            </button>
-                            <button id="debugConfigBtn" class="btn btn-outline-secondary btn-sm ms-2" onclick="checkAutoMonitorConfig()" title="调试自动监控配置">
-                                <i class="fas fa-bug me-1"></i>调试配置
-                            </button>
-                            <button id="forceSyncBtn" class="btn btn-outline-warning btn-sm ms-2" onclick="forceSyncConfig()" title="强制同步配置">
-                                <i class="fas fa-sync-alt fa-spin me-1"></i>强制同步
                             </button>
                         </div>
                     </div>
@@ -405,11 +472,7 @@
                                         <option value="600">10分钟</option>
                                     </select>
                                 </div>
-                                <div class="mb-2">
-                                    <small class="text-muted">
-                                        <strong>自动刷新状态:</strong> <span id="autoRefreshStatus"><span class="badge bg-secondary">已禁用</span></span>
-                                    </small>
-                                </div>
+
                                 <div class="d-flex align-items-center mb-3">
                                     <div class="form-check form-switch me-3">
                                         <input class="form-check-input" type="checkbox" id="monitoringToggle">
@@ -431,6 +494,19 @@
                                         <label class="form-check-label" for="autoStartToggle">
                                             自启动虚拟机
                                         </label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <label class="form-label mb-0 me-2 small">启动数量:</label>
+                                        <select id="autoStartNum" class="form-select form-select-sm" style="width: 80px;">
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4" selected>4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="8">8</option>
+                                            <option value="10">10</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -503,6 +579,27 @@
                                 <i class="fas fa-chevron-down me-1"></i>向下滚动查看更多虚拟机
                             </div>
                         </div>
+                        
+                        <!-- 分页控件 -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-2">
+                            <div class="text-muted small">
+                                显示 <span id="currentRange">0-0</span> 共 <span id="totalCount">0</span> 个虚拟机
+                            </div>
+                            <nav aria-label="虚拟机列表分页">
+                                <ul class="pagination pagination-sm mb-0" id="pagination">
+                                    <!-- 分页按钮将在这里动态生成 -->
+                                </ul>
+                            </nav>
+                            <div class="d-flex align-items-center">
+                                <label class="form-label mb-0 me-2 small">每页显示:</label>
+                                <select id="pageSize" class="form-select form-select-sm" style="width: 70px;">
+                                    <option value="6">6</option>
+                                    <option value="12" selected>12</option>
+                                    <option value="18">18</option>
+                                    <option value="24">24</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -530,6 +627,8 @@
 
 
     </div>
+
+
 
     <!-- 日志查看模态框 -->
     <div class="modal fade" id="logsModal" tabindex="-1">
@@ -586,6 +685,11 @@
         let lastConfigUpdate = 0; // 上次配置更新时间
         let lastVMLoadTime = 0; // 上次虚拟机加载时间
         let apiCallThrottle = {}; // API调用节流控制
+        
+        // 分页相关变量
+        let currentPage = 1;
+        let pageSize = 12;
+        let totalPages = 1;
 
         // 页面可见性检测
         let isPageVisible = true;
@@ -616,6 +720,9 @@
             // 确保滚动到底部时内容完全可见
             ensureBottomContentVisible();
             
+            // 确保分页控件在100%比例下可见
+            ensurePaginationVisible();
+            
             loadVMs();
             loadMonitorStatus();
             loadVboxDirConfig();
@@ -639,45 +746,20 @@
         // 窗口大小改变时重新调整高度
         window.addEventListener('resize', function() {
             calculatePreciseContainerHeight();
+            // 延迟执行，确保DOM更新完成
+            setTimeout(() => {
+                ensurePaginationVisible();
+            }, 100);
         });
 
         // 设置事件监听器
         function setupEventListeners() {
-            // 刷新按钮
-            document.getElementById('refreshBtn').addEventListener('click', function() {
-                this.querySelector('i').classList.add('refresh-spinner');
-                loadVMs().finally(() => {
-                    this.querySelector('i').classList.remove('refresh-spinner');
-                });
-            });
-
-            // 扫描按钮
-            document.getElementById('scanBtn').addEventListener('click', function() {
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>扫描中...';
-                
-                fetch('/api/scan')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showAlert('success', `扫描完成，发现 ${data.data.length} 个虚拟机`);
-                            // 延迟加载虚拟机列表，避免频繁调用
-                            setTimeout(() => {
-                                if (isPageVisible) {
-                                    loadVMs();
-                                }
-                            }, 1000); // 延迟1秒，等待扫描完成
-                        } else {
-                            showAlert('danger', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        showAlert('danger', '扫描失败: ' + error.message);
-                    })
-                    .finally(() => {
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-search me-1"></i>扫描';
-                    });
+            // 每页显示数量改变
+            document.getElementById('pageSize').addEventListener('change', function() {
+                pageSize = parseInt(this.value);
+                currentPage = 1; // 重置到第一页
+                displayVMs(vmList); // 重新显示
+                console.log(`每页显示数量已更改为: ${pageSize}`);
             });
 
             // 自动刷新开关
@@ -762,7 +844,6 @@
                     } else {
                         // 如果自动刷新未启用，只更新UI显示
                         console.log('自动刷新未启用，仅更新显示');
-                        updateAutoRefreshStatus(false, interval);
                     }
                 });
             });
@@ -882,6 +963,45 @@
                 }
             });
 
+            // 自启动数量下拉选择器
+            document.getElementById('autoStartNum').addEventListener('change', function() {
+                const num = parseInt(this.value);
+                console.log(`自启动数量变更: ${num}`);
+                
+                // 更新配置文件中的AUTO_START_STOPPED_NUM
+                updateConfigParameter('AUTO_START_STOPPED_NUM', num).then(() => {
+                    console.log('自启动数量已更新到配置文件');
+                    updateConfigStatus('同步中...', '自启动数量已更新');
+                    
+                    // 如果监控正在运行，重新启动监控以应用新设置
+                    const monitoringToggle = document.getElementById('monitoringToggle');
+                    if (monitoringToggle.checked) {
+                        console.log('监控正在运行，重新启动以应用新的自启动数量设置');
+                        const interval = document.getElementById('monitorInterval').value;
+                        const autoStart = document.getElementById('autoStartToggle').checked;
+                        
+                        // 显示用户友好的提示
+                        const actionText = num > 0 ? `启动数量设置为 ${num}` : `停止所有虚拟机`;
+                        showAlert('info', `正在重新启动监控，应用新的设置: ${actionText}`);
+                        
+                        startMonitoring(interval, autoStart);
+                        
+                        // 延迟检查监控状态
+                        setTimeout(() => {
+                            console.log('延迟检查监控状态...');
+                            loadMonitorStatus();
+                        }, 2000);
+                    }
+                    
+                    setTimeout(() => {
+                        updateConfigStatus('已同步', '配置更新完成');
+                    }, 500);
+                }).catch(error => {
+                    console.error('更新自启动数量失败:', error);
+                    updateConfigStatus('同步失败', '自启动数量更新失败');
+                });
+            });
+
             // 日志查看按钮
             document.getElementById('viewLogsBtn').addEventListener('click', function() {
                 showLogsModal();
@@ -947,7 +1067,7 @@
             return false;
         }
 
-        // 加载虚拟机列表
+        // 加载虚拟机列表（只获取文件名）
         async function loadVMs() {
             // 从配置文件获取自动刷新间隔，作为节流时间
             const autoRefreshIntervalElement = document.getElementById('autoRefreshInterval');
@@ -959,26 +1079,68 @@
                 return;
             }
             
-            console.log('开始加载虚拟机列表...');
+            console.log('开始加载虚拟机列表（仅文件名）...');
             try {
-                console.log('发送请求到 /api/vms');
-                const response = await fetch('/api/vms');
+                // 首先尝试新的API端点
+                console.log('尝试发送请求到 /api/vms/names');
+                let response = await fetch('/api/vms/names');
                 console.log('收到响应:', response.status, response.statusText);
+                
+                // 如果新API不存在，回退到原来的API
+                if (response.status === 404) {
+                    console.log('新API端点不存在，回退到原来的API');
+                    response = await fetch('/api/vms');
+                }
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // 检查响应内容类型
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('服务器返回非JSON内容:', text.substring(0, 200));
+                    throw new Error('服务器返回非JSON格式数据');
+                }
                 
                 const data = await response.json();
                 console.log('解析响应数据:', data);
                 
                 if (data.success) {
-                    vmList = data.data;
-                    console.log(`获取到 ${vmList.length} 个虚拟机:`, vmList);
-                    
-                    // 添加启动失败标记
-                    addStartFailureMarkers(vmList);
-                    
-                    displayVMs(vmList);
-                    updateLastUpdate(data.timestamp);
-                    updateVMCount(vmList.length);
-                    lastVMLoadTime = Date.now();
+                    // 如果使用原来的API，直接使用返回的数据
+                    if (response.url.includes('/api/vms') && !response.url.includes('/names')) {
+                        vmList = data.data;
+                        console.log(`获取到 ${vmList.length} 个虚拟机:`, vmList);
+                        
+                        // 添加启动失败标记
+                        addStartFailureMarkers(vmList);
+                        
+                        displayVMs(vmList);
+                        updateLastUpdate(data.timestamp);
+                        updateVMCount(vmList.length);
+                        lastVMLoadTime = Date.now();
+                    } else {
+                        // 使用新的API，初始化虚拟机列表
+                        vmList = data.data.map(name => ({
+                            name: name,
+                            status: 'loading', // 初始状态为加载中
+                            uuid: '...',
+                            last_check: new Date().toISOString()
+                        }));
+                        
+                        console.log(`获取到 ${vmList.length} 个虚拟机文件名:`, vmList);
+                        
+                        // 立即显示虚拟机列表（仅文件名）
+                        displayVMs(vmList);
+                        updateLastUpdate(data.timestamp);
+                        updateVMCount(vmList.length);
+                        lastVMLoadTime = Date.now();
+                        
+                        // 异步获取虚拟机状态
+                        loadVMStatusesAsync();
+                    }
                 } else {
                     console.error('API返回错误:', data.message);
                     showAlert('danger', data.message);
@@ -1003,12 +1165,27 @@
             if (vms.length === 0) {
                 vmListContainer.innerHTML = '';
                 noVmsMessage.style.display = 'block';
+                updatePagination(0, 0, 0);
                 return;
             }
 
             noVmsMessage.style.display = 'none';
             
-            vmListContainer.innerHTML = vms.map(vm => createVMCard(vm)).join('');
+            // 计算分页
+            totalPages = Math.ceil(vms.length / pageSize);
+            currentPage = Math.min(currentPage, totalPages);
+            if (currentPage < 1) currentPage = 1;
+            
+            // 获取当前页的数据
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, vms.length);
+            const currentPageVMs = vms.slice(startIndex, endIndex);
+            
+            // 显示当前页的虚拟机
+            vmListContainer.innerHTML = currentPageVMs.map(vm => createVMCard(vm)).join('');
+            
+            // 更新分页控件
+            updatePagination(startIndex + 1, endIndex, vms.length);
             
             // 检查是否需要显示滚动提示
             setTimeout(() => {
@@ -1017,7 +1194,9 @@
                 calculatePreciseContainerHeight();
                 // 确保滚动到底部时内容完全可见
                 ensureBottomContentVisible();
-                console.log(`虚拟机列表更新完成，共 ${vms.length} 个虚拟机`);
+                // 确保分页控件在100%比例下可见
+                ensurePaginationVisible();
+                console.log(`虚拟机列表更新完成，共 ${vms.length} 个虚拟机，当前页 ${currentPage}/${totalPages}`);
             }, 100);
         }
         
@@ -1041,6 +1220,219 @@
                 }
             }
         }
+        
+        // 更新分页控件
+        function updatePagination(start, end, total) {
+            const currentRange = document.getElementById('currentRange');
+            const totalCount = document.getElementById('totalCount');
+            const pagination = document.getElementById('pagination');
+            
+            // 更新显示范围
+            currentRange.textContent = `${start}-${end}`;
+            totalCount.textContent = total;
+            
+            // 生成分页按钮
+            let paginationHTML = '';
+            
+            if (totalPages <= 1) {
+                paginationHTML = '<li class="page-item disabled"><span class="page-link">无分页</span></li>';
+            } else {
+                // 上一页按钮
+                paginationHTML += `
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'tabindex="-1"' : ''}>
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                `;
+                
+                // 页码按钮
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                // 第一页
+                if (startPage > 1) {
+                    paginationHTML += `
+                        <li class="page-item">
+                            <a class="page-link" href="#" onclick="changePage(1)">1</a>
+                        </li>
+                    `;
+                    if (startPage > 2) {
+                        paginationHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                    }
+                }
+                
+                // 页码
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHTML += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                        </li>
+                    `;
+                }
+                
+                // 最后一页
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        paginationHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                    }
+                    paginationHTML += `
+                        <li class="page-item">
+                            <a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a>
+                        </li>
+                    `;
+                }
+                
+                // 下一页按钮
+                paginationHTML += `
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'tabindex="-1"' : ''}>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                `;
+            }
+            
+            pagination.innerHTML = paginationHTML;
+        }
+        
+        // 切换页面
+        function changePage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) {
+                return;
+            }
+            
+            currentPage = page;
+            displayVMs(vmList); // 重新显示当前页
+        }
+        
+        // 异步获取虚拟机状态
+        async function loadVMStatusesAsync() {
+            console.log('开始异步获取虚拟机状态...');
+            
+            try {
+                // 尝试新的状态API端点
+                let response = await fetch('/api/vms/statuses');
+                
+                // 如果新API不存在，跳过状态更新
+                if (response.status === 404) {
+                    console.log('状态API端点不存在，跳过异步状态更新');
+                    return;
+                }
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // 检查响应内容类型
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('服务器返回非JSON内容:', text.substring(0, 200));
+                    throw new Error('服务器返回非JSON格式数据');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新虚拟机状态
+                    data.data.forEach(vmStatus => {
+                        const vm = vmList.find(v => v.name === vmStatus.name);
+                        if (vm) {
+                            vm.status = vmStatus.status;
+                            vm.uuid = vmStatus.uuid || vm.uuid;
+                            vm.last_check = vmStatus.last_check || vm.last_check;
+                            vm.start_failure = vmStatus.start_failure || false;
+                            vm.exception = vmStatus.exception || false;
+                        }
+                    });
+                    
+                    // 添加启动失败标记
+                    addStartFailureMarkers(vmList);
+                    
+                    // 重新显示当前页以更新状态
+                    displayVMs(vmList);
+                    
+                    console.log('虚拟机状态异步更新完成');
+                } else {
+                    console.error('获取虚拟机状态失败:', data.message);
+                }
+            } catch (error) {
+                console.error('异步获取虚拟机状态失败:', error);
+            }
+        }
+        
+        // 更新单个虚拟机状态
+        async function updateSingleVMStatus(vmName) {
+            console.log(`更新单个虚拟机状态: ${vmName}`);
+            
+            try {
+                // 尝试新的状态API端点
+                let response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/status`);
+                
+                // 如果新API不存在，跳过状态更新
+                if (response.status === 404) {
+                    console.log(`虚拟机 ${vmName} 状态API端点不存在，跳过状态更新`);
+                    return;
+                }
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // 检查响应内容类型
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('服务器返回非JSON内容:', text.substring(0, 200));
+                    throw new Error('服务器返回非JSON格式数据');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const vm = vmList.find(v => v.name === vmName);
+                    if (vm) {
+                        vm.status = data.data.status;
+                        vm.uuid = data.data.uuid || vm.uuid;
+                        vm.last_check = data.data.last_check || vm.last_check;
+                        vm.start_failure = data.data.start_failure || false;
+                        vm.exception = data.data.exception || false;
+                        
+                        // 重新显示当前页以更新状态
+                        displayVMs(vmList);
+                        console.log(`虚拟机 ${vmName} 状态更新完成`);
+                    }
+                } else {
+                    console.error(`获取虚拟机 ${vmName} 状态失败:`, data.message);
+                }
+            } catch (error) {
+                console.error(`更新虚拟机 ${vmName} 状态失败:`, error);
+            }
+        }
+        
+        // 更新虚拟机操作状态（UI反馈）
+        function updateVMOperationStatus(vmName, operation) {
+            const vmCard = document.querySelector(`[data-vm-name="${vmName}"]`);
+            if (vmCard) {
+                const buttons = vmCard.querySelectorAll('.btn');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>${operation === 'starting' ? '启动中' : '停止中'}`;
+                });
+            }
+        }
+        
+
+        
+
         
         // 确保滚动到底部时内容完全可见
         function ensureBottomContentVisible() {
@@ -1066,21 +1458,43 @@
             }
         }
         
-        // 精确计算容器高度，使用动态比例基于400px基础值
+        // 确保分页控件在100%比例下可见
+        function ensurePaginationVisible() {
+            const container = document.querySelector('.vm-list-container');
+            const paginationContainer = document.querySelector('.d-flex.justify-content-between.align-items-center.mt-3');
+            
+            if (container && paginationContainer) {
+                // 检查分页控件是否在容器底部可见
+                const containerRect = container.getBoundingClientRect();
+                const paginationRect = paginationContainer.getBoundingClientRect();
+                
+                // 如果分页控件被遮挡，调整容器高度
+                if (paginationRect.bottom > containerRect.bottom) {
+                    const overflow = paginationRect.bottom - containerRect.bottom;
+                    const currentMaxHeight = parseInt(container.style.maxHeight) || container.offsetHeight;
+                    const newMaxHeight = Math.max(200, currentMaxHeight - overflow - 20); // 额外留出20px边距
+                    
+                    container.style.maxHeight = `${newMaxHeight}px`;
+                    console.log(`调整容器高度确保分页控件可见: 新高度=${newMaxHeight}px`);
+                }
+            }
+        }
+        
+        // 精确计算容器高度，使用动态比例基于500px基础值（确保100%比例下分页控件可见）
         function calculatePreciseContainerHeight() {
             const container = document.querySelector('.vm-list-container');
             if (container) {
                 const windowHeight = window.innerHeight;
                 
-                // 根据窗口高度设置动态比例的基础值
-                let baseOffset = 400; // 默认基础偏移量
+                // 根据窗口高度设置动态比例的基础值（确保100%比例下分页控件可见）
+                let baseOffset = 500; // 默认基础偏移量
                 
                 if (windowHeight <= 600) {
-                    baseOffset = 300; // 小屏幕减少基础偏移量
+                    baseOffset = 400; // 小屏幕减少基础偏移量
                 } else if (windowHeight <= 800) {
-                    baseOffset = 350; // 中等屏幕
+                    baseOffset = 450; // 中等屏幕
                 } else {
-                    baseOffset = 400; // 大屏幕
+                    baseOffset = 500; // 大屏幕
                 }
                 
                 const maxHeight = Math.max(200, windowHeight - baseOffset); // 确保最小高度为200px
@@ -1111,7 +1525,7 @@
             
             return `
                 <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card vm-card h-100 ${failureClass} ${exceptionClass}">
+                    <div class="card vm-card h-100 ${failureClass} ${exceptionClass}" data-vm-name="${vm.name}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 text-truncate" title="${vm.name}">
                                 ${failureIcon}${exceptionIcon}<i class="fas fa-server me-1"></i>${vm.name}
@@ -1185,6 +1599,7 @@
                 case 'paused': return '已暂停';
                 case 'saved': return '已保存';
                 case 'aborted': return '异常终止';
+                case 'loading': return '加载中...';
                 case 'unknown': return '未知状态';
                 default: 
                     console.warn(`未知状态值: ${status}`);
@@ -1201,6 +1616,7 @@
                 case 'paused': return '<i class="fas fa-pause"></i>';
                 case 'saved': return '<i class="fas fa-save"></i>';
                 case 'aborted': return '<i class="fas fa-exclamation-triangle"></i>';
+                case 'loading': return '<i class="fas fa-spinner fa-spin"></i>';
                 case 'unknown': return '<i class="fas fa-question"></i>';
                 default: 
                     console.warn(`未知状态值: ${status}`);
@@ -1215,9 +1631,17 @@
             return date.toLocaleString('zh-CN');
         }
 
-        // 启动虚拟机
+        // 启动虚拟机（异步操作）
         async function startVM(vmName) {
+            if (!confirm(`确定要启动虚拟机 "${vmName}" 吗？`)) {
+                return;
+            }
+
             console.log(`开始启动虚拟机: ${vmName}`);
+            
+            // 立即更新UI状态为操作中
+            updateVMOperationStatus(vmName, 'starting');
+            
             try {
                 const url = `/api/vm/${encodeURIComponent(vmName)}/start`;
                 console.log('发送请求到:', url);
@@ -1236,44 +1660,37 @@
                     clearBackendStartFailure(vmName);
                     // 清除异常状态
                     await clearVMExceptionBackend(vmName);
-                    // 延迟加载虚拟机列表，避免频繁调用
-                    setTimeout(() => {
-                        if (isPageVisible) {
-                            loadVMs();
-                        }
-                    }, 1000); // 延迟1秒，等待状态稳定
+                    // 异步更新单个虚拟机状态
+                    await updateSingleVMStatus(vmName);
                 } else {
                     console.error(`虚拟机 ${vmName} 启动失败:`, data.message);
                     showAlert('danger', data.message);
                     // 标记启动失败
                     markStartFailure(vmName);
-                    // 延迟加载虚拟机列表，避免频繁调用
-                    setTimeout(() => {
-                        if (isPageVisible) {
-                            loadVMs();
-                        }
-                    }, 1000); // 延迟1秒，等待状态稳定
+                    // 异步更新单个虚拟机状态
+                    await updateSingleVMStatus(vmName);
                 }
             } catch (error) {
                 console.error(`启动虚拟机 ${vmName} 失败:`, error);
                 showAlert('danger', '启动虚拟机失败: ' + error.message);
                 // 标记启动失败
                 markStartFailure(vmName);
-                // 延迟加载虚拟机列表，避免频繁调用
-                setTimeout(() => {
-                    if (isPageVisible) {
-                        loadVMs();
-                    }
-                }, 1000); // 延迟1秒，等待状态稳定
+                // 异步更新单个虚拟机状态
+                await updateSingleVMStatus(vmName);
             }
         }
 
-        // 停止虚拟机
+        // 停止虚拟机（异步操作）
         async function stopVM(vmName) {
             if (!confirm(`确定要停止虚拟机 "${vmName}" 吗？`)) {
                 return;
             }
 
+            console.log(`开始停止虚拟机: ${vmName}`);
+            
+            // 立即更新UI状态为操作中
+            updateVMOperationStatus(vmName, 'stopping');
+            
             try {
                 const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/stop`);
                 const data = await response.json();
@@ -1282,17 +1699,17 @@
                     showAlert('success', data.message);
                     // 清除异常状态
                     await clearVMExceptionBackend(vmName);
-                    // 延迟加载虚拟机列表，避免频繁调用
-                    setTimeout(() => {
-                        if (isPageVisible) {
-                            loadVMs();
-                        }
-                    }, 1000); // 延迟1秒，等待状态稳定
+                    // 异步更新单个虚拟机状态
+                    await updateSingleVMStatus(vmName);
                 } else {
                     showAlert('danger', data.message);
+                    // 异步更新单个虚拟机状态
+                    await updateSingleVMStatus(vmName);
                 }
             } catch (error) {
                 showAlert('danger', '停止虚拟机失败: ' + error.message);
+                // 异步更新单个虚拟机状态
+                await updateSingleVMStatus(vmName);
             }
         }
 
@@ -1304,24 +1721,35 @@
 
 
 
-        // 显示虚拟机详情
+        // 显示虚拟机详情（异步操作）
         async function showVMDetail(vmName) {
+            console.log(`开始获取虚拟机详情: ${vmName}`);
+            
+            // 显示加载状态
+            const modal = new bootstrap.Modal(document.getElementById('vmDetailModal'));
+            const content = document.getElementById('vmDetailContent');
+            content.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2">正在获取虚拟机详情...</p>
+                </div>
+            `;
+            modal.show();
+            
             try {
                 const response = await fetch(`/api/vm/${encodeURIComponent(vmName)}/info`);
                 const data = await response.json();
-                
-                const modal = new bootstrap.Modal(document.getElementById('vmDetailModal'));
-                const content = document.getElementById('vmDetailContent');
                 
                 if (data.success) {
                     content.innerHTML = createVMDetailHTML(vmName, data.data);
                 } else {
                     content.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                 }
-                
-                modal.show();
             } catch (error) {
-                showAlert('danger', '获取虚拟机详情失败: ' + error.message);
+                console.error(`获取虚拟机详情失败: ${vmName}`, error);
+                content.innerHTML = `<div class="alert alert-danger">获取虚拟机详情失败: ${error.message}</div>`;
             }
         }
 
@@ -1427,8 +1855,6 @@
                 }
             }, actualInterval);
             
-            // 更新状态显示
-            updateAutoRefreshStatus(true, actualInterval / 1000);
             console.log(`自动刷新已启动，间隔: ${actualInterval/1000}秒`);
             
             // 避免频繁保存配置，只在必要时保存
@@ -1443,22 +1869,10 @@
                 autoRefreshInterval = null;
             }
             
-            // 更新状态显示
-            updateAutoRefreshStatus(false, 0);
             console.log('自动刷新已停止');
         }
 
-        // 更新自动刷新状态显示
-        function updateAutoRefreshStatus(enabled, interval) {
-            const statusElement = document.getElementById('autoRefreshStatus');
-            if (statusElement) {
-                if (enabled) {
-                    statusElement.innerHTML = `<span class="badge bg-success">已启用</span> <small class="text-muted">(${interval}秒间隔)</small>`;
-                } else {
-                    statusElement.innerHTML = `<span class="badge bg-secondary">已禁用</span>`;
-                }
-            }
-        }
+
 
         // 防止重复保存的标志
         let isSavingWebRefreshConfig = false;
@@ -1502,10 +1916,8 @@
                     
                     // 更新状态显示
                     if (data.data && data.data.enabled) {
-                        updateAutoRefreshStatus(true, data.data.interval);
                         showAlert('success', `自动刷新已启用，间隔: ${data.data.interval}秒`);
                     } else {
-                        updateAutoRefreshStatus(false, 0);
                         showAlert('success', '自动刷新已禁用');
                     }
                     
@@ -1845,6 +2257,12 @@
                     autoStartToggle.checked = autoStartEnabled;
                     console.log('设置自启动虚拟机按钮状态:', autoStartEnabled);
                     
+                    // 设置自启动数量
+                    const autoStartNum = document.getElementById('autoStartNum');
+                    const autoStartNumValue = config.auto_start_stopped_num || 4;
+                    autoStartNum.value = autoStartNumValue;
+                    console.log('设置自启动数量:', autoStartNumValue);
+                    
                     // 恢复change事件监听器
                     monitoringToggle.onchange = originalMonitoringHandler;
                     autoStartToggle.onchange = originalAutoStartHandler;
@@ -1916,8 +2334,7 @@
                     // 恢复change事件监听器
                     autoRefreshToggle.onchange = originalChangeHandler;
                     
-                    // 更新状态显示
-                    updateAutoRefreshStatus(autoRefreshToggle.checked, parseInt(autoRefreshInterval.value));
+
                     
                     // 不触发change事件，避免自动保存
                     console.log('Web自动刷新配置加载完成，UI已更新');
@@ -2516,8 +2933,7 @@
                         autoRefreshToggle.checked = configButtonState;
                         hasChanges = true;
                         
-                        // 更新状态显示
-                        updateAutoRefreshStatus(configButtonState, parseInt(autoRefreshInterval.value));
+
                         
                         // 如果状态变为启用，启动自动刷新
                         if (configButtonState && !currentButtonState) {
@@ -2673,6 +3089,7 @@
                         if (monitoringToggle.checked) {
                             console.log('检测到自启动设置已更改，重新启动监控...');
                             const interval = monitorInterval.value;
+                            // 使用更新后的UI状态，而不是配置文件中的状态
                             startMonitoring(interval, configAutoStartState);
                         }
                     } else {
