@@ -2128,11 +2128,10 @@ def api_get_auto_delete_config():
     """获取自动删除配置"""
     try:
         # 从配置文件读取配置
-        from config import AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT, AUTO_DELETE_BACKUP_DIR
+        from config import AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT
         config = {
             'enabled': AUTO_DELETE_ENABLED,
-            'max_count': AUTO_DELETE_MAX_COUNT,
-            'backup_dir': AUTO_DELETE_BACKUP_DIR
+            'max_count': AUTO_DELETE_MAX_COUNT
         }
         return jsonify({'success': True, 'config': config})
     except Exception as e:
@@ -2147,7 +2146,6 @@ def api_save_auto_delete_config():
         data = request.get_json()
         enabled = data.get('enabled', False)
         max_count = data.get('max_count', 10)
-        backup_dir = data.get('backup_dir', 'delete_bak')
         
         # 更新配置文件
         success = True
@@ -2164,16 +2162,13 @@ def api_save_auto_delete_config():
         success &= success_max_count
         logger.info(f"AUTO_DELETE_MAX_COUNT更新结果: {success_max_count}")
         
-        # 暂时跳过AUTO_DELETE_BACKUP_DIR的更新，因为它是在条件语句中定义的
-        # success &= update_config_value('AUTO_DELETE_BACKUP_DIR', backup_dir)
-        
         logger.info(f"自动删除配置更新总体结果: {success}")
         
         if success:
             try:
                 # 更新监控器中的配置
                 monitor = get_vbox_monitor()
-                monitor.set_auto_delete_config(enabled, max_count, backup_dir)
+                monitor.set_auto_delete_config(enabled, max_count)
                 
                 # 打印所有配置状态
                 print_all_config_status()

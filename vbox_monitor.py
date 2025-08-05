@@ -2058,37 +2058,19 @@ class VirtualBoxMonitor:
             try:
                 from config import (
                     AUTO_DELETE_ENABLED, 
-                    AUTO_DELETE_MAX_COUNT, 
-                    AUTO_DELETE_BACKUP_DIR,
-                    AUTO_DELETE_BACKUP_STRATEGY,
-                    AUTO_DELETE_BACKUP_LOCATION,
-                    get_backup_directory_path
+                    AUTO_DELETE_MAX_COUNT
                 )
                 self.auto_delete_enabled = AUTO_DELETE_ENABLED
                 self.max_start_count = AUTO_DELETE_MAX_COUNT
-                self.delete_backup_dir = AUTO_DELETE_BACKUP_DIR
-                self.backup_strategy = AUTO_DELETE_BACKUP_STRATEGY
-                self.backup_location = AUTO_DELETE_BACKUP_LOCATION
-                self.get_backup_path = get_backup_directory_path
                 
                 logger.info(f"从配置文件加载自动删除配置:")
                 logger.info(f"  - 启用状态: {self.auto_delete_enabled}")
                 logger.info(f"  - 最大次数: {self.max_start_count}")
-                logger.info(f"  - 备份目录名称: {self.delete_backup_dir}")
-                logger.info(f"  - 备份策略: {self.backup_strategy}")
-                logger.info(f"  - 备份位置: {self.backup_location}")
-                
-                # 计算实际备份路径
-                actual_backup_path = get_backup_directory_path()
-                logger.info(f"  - 实际备份路径: {actual_backup_path}")
                 
             except ImportError as e:
                 logger.warning(f"无法从配置文件加载自动删除配置: {e}，使用默认值")
                 self.auto_delete_enabled = False
                 self.max_start_count = 10
-                self.delete_backup_dir = "delete_bak"
-                self.backup_strategy = "dynamic"
-                self.backup_location = "sibling"
             
             if os.path.exists(self.vm_config_file):
                 with open(self.vm_config_file, 'r', encoding='utf-8') as f:
@@ -2113,7 +2095,6 @@ class VirtualBoxMonitor:
             logger.error(f"加载虚拟机配置文件失败: {e}")
             self.auto_delete_enabled = False
             self.max_start_count = 10
-            self.delete_backup_dir = "delete_bak"
 
     def save_vm_config(self):
         """保存虚拟机配置文件"""
@@ -2146,7 +2127,7 @@ class VirtualBoxMonitor:
         """获取虚拟机启动次数"""
         return self.vm_start_counts.get(vm_name, 0)
 
-    def set_auto_delete_config(self, enabled: bool, max_count: int, backup_dir: str):
+    def set_auto_delete_config(self, enabled: bool, max_count: int):
         """设置自动删除配置"""
         try:
             # 更新config.py文件
@@ -2160,8 +2141,6 @@ class VirtualBoxMonitor:
                         lines[i] = f"AUTO_DELETE_ENABLED = {enabled}"
                     elif line.strip().startswith('AUTO_DELETE_MAX_COUNT ='):
                         lines[i] = f"AUTO_DELETE_MAX_COUNT = {max_count}"
-                    elif line.strip().startswith('AUTO_DELETE_BACKUP_DIR ='):
-                        lines[i] = f'AUTO_DELETE_BACKUP_DIR = "{backup_dir}"'
                 
                 config_content = '\n'.join(lines)
             
@@ -2171,16 +2150,14 @@ class VirtualBoxMonitor:
             # 更新内存中的配置
             self.auto_delete_enabled = enabled
             self.max_start_count = max_count
-            self.delete_backup_dir = backup_dir
             
-            logger.info(f"更新自动删除配置: 启用={enabled}, 最大次数={max_count}, 备份目录={backup_dir}")
+            logger.info(f"更新自动删除配置: 启用={enabled}, 最大次数={max_count}")
             
         except Exception as e:
             logger.error(f"更新自动删除配置失败: {e}")
             # 如果更新配置文件失败，至少更新内存中的配置
             self.auto_delete_enabled = enabled
             self.max_start_count = max_count
-            self.delete_backup_dir = backup_dir
 
     def auto_delete_vm(self, vm_name: str) -> bool:
         """自动删除虚拟机（实际为移动虚拟机文件）"""
@@ -2240,7 +2217,17 @@ class VirtualBoxMonitor:
                 logger.info(f"🛑 开始执行停止虚拟机 {vm_name} 命令...")
                 monitor_logger.info(f"🛑 开始执行停止虚拟机 {vm_name} 命令...")
                 
-                stop_result = self.stop_vm(vm_name)
+                # 检查虚拟机当前状态
+                current_status = self.get_vm_status(vm_name)
+                logger.info(f"📊 虚拟机 {vm_name} 当前状态: {current_status}")
+                monitor_logger.info(f"📊 虚拟机 {vm_name} 当前状态: {current_status}")
+                
+                if current_status == 'poweroff':
+                    logger.info(f"✅ 虚拟机 {vm_name} 已经处于停止状态，跳过停止操作")
+                    monitor_logger.info(f"✅ 虚拟机 {vm_name} 已经处于停止状态，跳过停止操作")
+                    stop_result = True
+                else:
+                    stop_result = self.stop_vm(vm_name)
                 
                 logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
                 monitor_logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
@@ -2268,25 +2255,28 @@ class VirtualBoxMonitor:
             time.sleep(3)
             logger.info(f"✅ 等待完成")
             
-            # 创建备份目录（使用新的配置系统）
-            try:
-                from config import get_backup_directory_path
-                backup_dir = get_backup_directory_path()
-                logger.info(f"📁 备份目录路径: {backup_dir}")
-                logger.info(f"📋 备份策略: {getattr(self, 'backup_strategy', 'dynamic')}")
-                logger.info(f"📋 备份位置: {getattr(self, 'backup_location', 'sibling')}")
-            except ImportError:
-                # 如果无法导入新配置，使用旧逻辑
-                backup_dir = os.path.join(os.path.dirname(self.vbox_dir), self.delete_backup_dir)
-                logger.info(f"📁 使用旧配置备份目录路径: {backup_dir}")
+            # 再次检查虚拟机状态
+            final_status = self.get_vm_status(vm_name)
+            logger.info(f"📊 虚拟机 {vm_name} 最终状态: {final_status}")
+            monitor_logger.info(f"📊 虚拟机 {vm_name} 最终状态: {final_status}")
             
-            if not os.path.exists(backup_dir):
-                logger.info(f"📁 创建备份目录: {backup_dir}")
-                monitor_logger.info(f"📁 创建备份目录: {backup_dir}")
-                os.makedirs(backup_dir)
-                logger.info(f"✅ 备份目录创建成功")
+            # 创建删除目录（使用新的配置系统）
+            try:
+                from config import VBOX_DIR_DELETE
+                delete_dir = VBOX_DIR_DELETE
+                logger.info(f"📁 删除目录路径: {delete_dir}")
+            except ImportError:
+                # 如果无法导入新配置，使用默认路径
+                delete_dir = os.path.join(os.path.dirname(self.vbox_dir), "VirtualBox VMs_DELETE")
+                logger.info(f"📁 使用默认删除目录路径: {delete_dir}")
+            
+            if not os.path.exists(delete_dir):
+                logger.info(f"📁 创建删除目录: {delete_dir}")
+                monitor_logger.info(f"📁 创建删除目录: {delete_dir}")
+                os.makedirs(delete_dir)
+                logger.info(f"✅ 删除目录创建成功")
             else:
-                logger.info(f"✅ 备份目录已存在")
+                logger.info(f"✅ 删除目录已存在")
             
             # 查找虚拟机目录（支持递归查找）
             vm_path = self._get_vm_path(vm_name)
@@ -2307,16 +2297,16 @@ class VirtualBoxMonitor:
             
             logger.info(f"✅ 虚拟机目录存在，大小: {self._get_directory_size(vm_dir)} MB")
             
-            # 移动虚拟机目录到备份目录
-            backup_path = os.path.join(backup_dir, vm_name)
-            logger.info(f"📁 目标备份路径: {backup_path}")
+            # 移动虚拟机目录到删除目录
+            delete_path = os.path.join(delete_dir, vm_name)
+            logger.info(f"📁 目标删除路径: {delete_path}")
             
-            if os.path.exists(backup_path):
-                # 如果备份目录已存在，添加时间戳
+            if os.path.exists(delete_path):
+                # 如果删除目录已存在，添加时间戳
                 timestamp = int(time.time())
-                backup_path = f"{backup_path}_{timestamp}"
-                logger.info(f"📁 备份目录已存在，使用时间戳命名: {backup_path}")
-                monitor_logger.info(f"📁 备份目录已存在，使用时间戳命名: {backup_path}")
+                delete_path = f"{delete_path}_{timestamp}"
+                logger.info(f"📁 删除目录已存在，使用时间戳命名: {delete_path}")
+                monitor_logger.info(f"📁 删除目录已存在，使用时间戳命名: {delete_path}")
             
             # 移动目录
             logger.info(f"🔄 开始移动虚拟机文件...")
@@ -2327,10 +2317,10 @@ class VirtualBoxMonitor:
             sys.stdout.flush()
             
             import shutil
-            shutil.move(vm_dir, backup_path)
+            shutil.move(vm_dir, delete_path)
             
-            logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
-            monitor_logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
+            logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到删除目录: {delete_path}")
+            monitor_logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到删除目录: {delete_path}")
             
             # 强制刷新日志输出
             sys.stdout.flush()
@@ -2349,12 +2339,39 @@ class VirtualBoxMonitor:
             
             # 打印删除完成日志
             logger.info(f"🎉 虚拟机 {vm_name} 自动删除完成！")
-            logger.info(f"📁 备份位置: {backup_path}")
+            logger.info(f"📁 删除位置: {delete_path}")
             logger.info(f"📊 删除原因: 启动次数 {current_count} 已达到阈值 {self.max_start_count}")
             logger.info("=" * 60)
             monitor_logger.info(f"🎉 虚拟机 {vm_name} 自动删除完成！")
-            monitor_logger.info(f"📁 备份位置: {backup_path}")
+            monitor_logger.info(f"📁 删除位置: {delete_path}")
             monitor_logger.info(f"📊 删除原因: 启动次数 {current_count} 已达到阈值 {self.max_start_count}")
+            monitor_logger.info("=" * 60)
+            
+            # 打印详细的执行结果总结
+            logger.info("📋 自动删除执行结果总结:")
+            logger.info(f"  ✅ 虚拟机名称: {vm_name}")
+            logger.info(f"  ✅ 启动次数: {current_count}")
+            logger.info(f"  ✅ 删除阈值: {self.max_start_count}")
+            logger.info(f"  ✅ 停止状态: {'成功' if stop_result else '失败但继续'}")
+            logger.info(f"  ✅ 最终状态: {final_status}")
+            logger.info(f"  ✅ 删除目录: {delete_dir}")
+            logger.info(f"  ✅ 目标路径: {delete_path}")
+            logger.info(f"  ✅ 文件移动: 成功")
+            logger.info(f"  ✅ 标记删除: 成功")
+            logger.info(f"  ✅ 配置清理: 成功")
+            logger.info("=" * 60)
+            
+            monitor_logger.info("📋 自动删除执行结果总结:")
+            monitor_logger.info(f"  ✅ 虚拟机名称: {vm_name}")
+            monitor_logger.info(f"  ✅ 启动次数: {current_count}")
+            monitor_logger.info(f"  ✅ 删除阈值: {self.max_start_count}")
+            monitor_logger.info(f"  ✅ 停止状态: {'成功' if stop_result else '失败但继续'}")
+            monitor_logger.info(f"  ✅ 最终状态: {final_status}")
+            monitor_logger.info(f"  ✅ 删除目录: {delete_dir}")
+            monitor_logger.info(f"  ✅ 目标路径: {delete_path}")
+            monitor_logger.info(f"  ✅ 文件移动: 成功")
+            monitor_logger.info(f"  ✅ 标记删除: 成功")
+            monitor_logger.info(f"  ✅ 配置清理: 成功")
             monitor_logger.info("=" * 60)
             
             # 强制刷新日志输出
