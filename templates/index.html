@@ -1626,12 +1626,17 @@
             const exceptionClass = hasException ? 'border-warning' : '';
             const exceptionIcon = hasException ? '<i class="fas fa-exclamation-triangle text-warning me-1" title="虚拟机操作异常"></i>' : '';
             
+            // 检查是否已被删除
+            const isDeleted = vm.deleted || false;
+            const deletedClass = isDeleted ? 'border-secondary bg-light' : '';
+            const deletedIcon = isDeleted ? '<i class="fas fa-trash text-secondary me-1" title="已删除"></i>' : '';
+            
             return `
                 <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card vm-card h-100 ${failureClass} ${exceptionClass}" data-vm-name="${vm.name}">
+                    <div class="card vm-card h-100 ${failureClass} ${exceptionClass} ${deletedClass}" data-vm-name="${vm.name}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 text-truncate" title="${vm.name}">
-                                ${failureIcon}${exceptionIcon}<i class="fas fa-server me-1"></i>${vm.name}
+                                ${failureIcon}${exceptionIcon}${deletedIcon}<i class="fas fa-server me-1"></i>${vm.name}
                             </h6>
                             <span class="badge ${statusClass} status-badge">
                                 ${statusIcon} ${statusText}
@@ -1646,40 +1651,50 @@
                                     <small class="text-muted">
                                         <i class="fas fa-clock me-1"></i>最后检查: ${formatTime(vm.last_check)}
                                     </small><br>
-                                    <small class="text-info">
-                                        <i class="fas fa-play me-1"></i>启动次数: ${vm.start_count || 0}
-                                    </small>
-                                    <small class="text-warning">
-                                        <i class="fas fa-trash me-1"></i>删除阈值: ${vm.delete_threshold || 10}
-                                    </small>
+                                    ${isDeleted ? 
+                                        `<small class="text-secondary">
+                                            <i class="fas fa-trash me-1"></i>已删除 - 移动到备份目录 (${vm.backup_path || 'delete_bak'})
+                                        </small>` :
+                                        `<small class="text-info">
+                                            <i class="fas fa-play me-1"></i>启动次数: ${vm.start_count || 0}
+                                        </small>
+                                        <small class="text-warning">
+                                            <i class="fas fa-trash me-1"></i>删除阈值: ${vm.delete_threshold || 10}
+                                        </small>`
+                                    }
                                     ${hasStartFailure ? `<br><small class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>启动失败 (${vm.failure_count || 1}次)</small>` : ''}
                                     ${hasException ? `<br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>操作异常 (${vm.exception_count || 1}次)</small>` : ''}
                                 </div>
                                 <div class="col-4 text-end">
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        ${vm.status === 'poweroff' || vm.status === 'aborted' ? 
-                                            `<button class="btn btn-success btn-sm" onclick="startVM('${vm.name}')" title="启动">
-                                                <i class="fas fa-play"></i>
-                                            </button>` : 
-                                            `<button class="btn btn-warning btn-sm" onclick="stopVM('${vm.name}')" title="停止">
-                                                <i class="fas fa-stop"></i>
-                                            </button>`
-                                        }
-                                        <button class="btn btn-info btn-sm" onclick="showVMDetail('${vm.name}')" title="详情">
-                                            <i class="fas fa-info-circle"></i>
-                                        </button>
-                                        ${hasException ? `
-                                        <button class="btn btn-outline-warning btn-sm" onclick="clearVMException('${vm.name}')" title="清除操作异常标记">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        ` : ''}
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="resetVMStartCount('${vm.name}')" title="重置启动次数">
-                                            <i class="fas fa-redo"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteVM('${vm.name}')" title="删除虚拟机">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
+                                    ${isDeleted ? 
+                                        `<div class="text-center">
+                                            <small class="text-muted">已删除</small>
+                                        </div>` :
+                                        `<div class="btn-group-vertical btn-group-sm">
+                                            ${vm.status === 'poweroff' || vm.status === 'aborted' ? 
+                                                `<button class="btn btn-success btn-sm" onclick="startVM('${vm.name}')" title="启动">
+                                                    <i class="fas fa-play"></i>
+                                                </button>` : 
+                                                `<button class="btn btn-warning btn-sm" onclick="stopVM('${vm.name}')" title="停止">
+                                                    <i class="fas fa-stop"></i>
+                                                </button>`
+                                            }
+                                            <button class="btn btn-info btn-sm" onclick="showVMDetail('${vm.name}')" title="详情">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                            ${hasException ? `
+                                            <button class="btn btn-outline-warning btn-sm" onclick="clearVMException('${vm.name}')" title="清除操作异常标记">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            ` : ''}
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="resetVMStartCount('${vm.name}')" title="重置启动次数">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="deleteVM('${vm.name}')" title="删除虚拟机">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>`
+                                    }
                                 </div>
                             </div>
 
@@ -1698,6 +1713,7 @@
                 case 'paused': return 'bg-warning';
                 case 'saved': return 'bg-info';
                 case 'aborted': return 'bg-danger';
+                case 'deleted': return 'bg-secondary';
                 case 'unknown': return 'bg-dark';
                 default: 
                     console.warn(`未知状态值: ${status}`);
@@ -1714,6 +1730,7 @@
                 case 'paused': return '已暂停';
                 case 'saved': return '已保存';
                 case 'aborted': return '异常终止';
+                case 'deleted': return '已删除';
                 case 'loading': return '加载中...';
                 case 'unknown': return '未知状态';
                 default: 
@@ -1731,6 +1748,7 @@
                 case 'paused': return '<i class="fas fa-pause"></i>';
                 case 'saved': return '<i class="fas fa-save"></i>';
                 case 'aborted': return '<i class="fas fa-exclamation-triangle"></i>';
+                case 'deleted': return '<i class="fas fa-trash"></i>';
                 case 'loading': return '<i class="fas fa-spinner fa-spin"></i>';
                 case 'unknown': return '<i class="fas fa-question"></i>';
                 default: 
@@ -2224,8 +2242,20 @@
                     startMonitorResultsCheck();
                 } else {
                     console.error('监控启动失败:', data.message);
-                    showAlert('danger', data.message);
-                    document.getElementById('monitoringToggle').checked = false;
+                    
+                    // 如果是监控已在运行中的错误，提供更友好的提示
+                    if (data.message && data.message.includes('监控已在运行中')) {
+                        showAlert('info', '监控已在运行中，无需重复启动');
+                        // 不取消勾选，因为监控确实在运行
+                        // 更新UI状态显示监控正在运行
+                        document.getElementById('monitorStatus').textContent = '运行中';
+                        document.getElementById('monitorMode').textContent = autoStart ? '自动启动模式' : '仅监控模式';
+                        document.getElementById('monitorStatus').parentElement.parentElement.classList.add('monitoring-active');
+                        document.getElementById('monitorStatus').parentElement.parentElement.classList.remove('monitoring-inactive');
+                    } else {
+                        showAlert('danger', data.message);
+                        document.getElementById('monitoringToggle').checked = false;
+                    }
                 }
             } catch (error) {
                 console.error('启动监控失败:', error);
@@ -2282,15 +2312,18 @@
                     if (data.data.monitoring) {
                         statusElement.classList.add('monitoring-active');
                         statusElement.classList.remove('monitoring-inactive');
+                        // 只有在监控运行时才设置按钮状态，避免覆盖用户设置
                         document.getElementById('monitoringToggle').checked = true;
                     } else {
                         statusElement.classList.remove('monitoring-active');
                         statusElement.classList.add('monitoring-inactive');
-                        document.getElementById('monitoringToggle').checked = false;
+                        // 不要自动设置按钮为false，保持用户的选择
+                        // document.getElementById('monitoringToggle').checked = false;
                     }
                 }
             } catch (error) {
                 console.error('加载监控状态失败:', error);
+                // 错误时也不要改变按钮状态
             }
         }
 
@@ -2412,12 +2445,35 @@
                         autoStart: autoStartToggle.checked
                     });
                     
-                    // 如果自动监控已启用，启动监控
+                    // 如果自动监控已启用，检查监控状态并启动监控
                     if (monitoringToggle.checked) {
-                        console.log('自动监控已启用，启动监控...');
-                        const interval = monitorInterval.value;
-                        const autoStart = autoStartToggle.checked;
-                        startMonitoring(interval, autoStart, false); // 不显示通知
+                        console.log('自动监控已启用，检查监控状态...');
+                        
+                        // 先检查监控状态
+                        try {
+                            const statusResponse = await fetch('/api/monitor/status');
+                            const statusData = await statusResponse.json();
+                            
+                            if (statusData.success) {
+                                if (statusData.data.monitoring) {
+                                    console.log('监控已在运行中，跳过启动');
+                                    // 更新UI状态显示监控正在运行
+                                    document.getElementById('monitorStatus').textContent = '运行中';
+                                    document.getElementById('monitorMode').textContent = autoStartToggle.checked ? '自动启动模式' : '仅监控模式';
+                                    document.getElementById('monitorStatus').parentElement.parentElement.classList.add('monitoring-active');
+                                    document.getElementById('monitorStatus').parentElement.parentElement.classList.remove('monitoring-inactive');
+                                } else {
+                                    console.log('监控未运行，启动监控...');
+                                    const interval = monitorInterval.value;
+                                    const autoStart = autoStartToggle.checked;
+                                    startMonitoring(interval, autoStart, false); // 不显示通知
+                                }
+                            } else {
+                                console.error('检查监控状态失败:', statusData.message);
+                            }
+                        } catch (error) {
+                            console.error('检查监控状态失败:', error);
+                        }
                     } else {
                         console.log('自动监控未启用');
                         

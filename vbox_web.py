@@ -8,6 +8,7 @@ VirtualBox虚拟机监控Web应用
 import json
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
+from flask_session import Session
 from functools import wraps
 import os
 import time
@@ -285,9 +286,37 @@ try:
     from config import SESSION_SECRET_KEY, SESSION_TIMEOUT
     app.config['SECRET_KEY'] = SESSION_SECRET_KEY
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_TIMEOUT)
+    
+    # 配置session持久化，避免服务重启后需要重新登录
+    import tempfile
+    session_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sessions')
+    if not os.path.exists(session_dir):
+        os.makedirs(session_dir)
+    app.config['SESSION_FILE_DIR'] = session_dir
+    app.config['SESSION_FILE_THRESHOLD'] = 500  # 最大session文件数
+    app.config['SESSION_FILE_MODE'] = 384  # 文件权限 0600
+    
+    # 配置session类型为文件系统
+    app.config['SESSION_TYPE'] = 'filesystem'
+    
 except ImportError:
     app.config['SECRET_KEY'] = 'vbox_monitor_secret_key'
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
+    
+    # 配置session持久化
+    import tempfile
+    session_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sessions')
+    if not os.path.exists(session_dir):
+        os.makedirs(session_dir)
+    app.config['SESSION_FILE_DIR'] = session_dir
+    app.config['SESSION_FILE_THRESHOLD'] = 500
+    app.config['SESSION_FILE_MODE'] = 384
+    
+    # 配置session类型为文件系统
+    app.config['SESSION_TYPE'] = 'filesystem'
+
+# 初始化Flask-Session
+Session(app)
 
 # 导入配置文件
 try:
@@ -299,7 +328,15 @@ except ImportError:
     WEB_PORT = 5000
     WEB_HOST = "0.0.0.0"
     LOG_LEVEL = "INFO"
-    WEB_LOG_FILE = "vbox_web.log"
+    # 生成带时间戳的日志文件名
+    from datetime import datetime
+    
+    def generate_log_filename(prefix):
+        """生成带时间戳的日志文件名"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"log/{prefix}_{timestamp}.log"
+    
+    WEB_LOG_FILE = generate_log_filename("vbox_web")
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
     VERBOSE_LOGGING = True
@@ -478,24 +515,27 @@ def init_monitor():
             
             if auto_monitor_enabled:
                 logger.info(f"加载保存的自动监控配置: 已启用，间隔: {auto_monitor_interval}秒，自动启动: {auto_start_enabled}")
-                # 启动自动监控
-                start_time = datetime.now().isoformat()
-                monitor.start_monitoring(auto_monitor_interval, auto_start_enabled, start_time)
+                # 启动自动监控（仅在监控未运行时启动）
+                if not monitor.monitoring:
+                    start_time = datetime.now().isoformat()
+                    monitor.start_monitoring(auto_monitor_interval, auto_start_enabled, start_time)
+                    logger.info(f"自动监控已启动: 间隔={auto_monitor_interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
+                    logger.info(f"自动监控状态: 已开启，执行间隔: {auto_monitor_interval}秒")
+                else:
+                    logger.info("监控已在运行中，跳过启动")
                 
                 # 格式化启动时间显示
                 try:
-                    start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                    formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                    # 使用当前时间作为启动时间，避免时区问题
+                    formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                 except:
-                    formatted_start_time = start_time
+                    formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                 
                 # 后台日志控制台打印监控启动信息
                 auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
-                console_logger.info(f"监控已启动，间隔{auto_monitor_interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
-                console_logger.info(f"监控将立即开始第一次检查，然后每 {auto_monitor_interval} 秒执行一次...")
-                
-                logger.info(f"自动监控已启动: 间隔={auto_monitor_interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
-                logger.info(f"自动监控状态: 已开启，执行间隔: {auto_monitor_interval}秒")
+                # 移除重复的启动信息输出，避免重复打印
+                # console_logger.info(f"监控已启动，间隔{auto_monitor_interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+                # console_logger.info(f"监控将立即开始第一次检查，然后每 {auto_monitor_interval} 秒执行一次...")
             else:
                 logger.info("加载保存的自动监控配置: 已禁用")
         except ImportError:
@@ -769,6 +809,15 @@ def api_start_monitoring():
         logger.info(f"auto_start参数解析过程: '{request.args.get('auto_start', 'true')}' -> {auto_start}")
         logger.info(f"监控策略: 每{interval}秒检查所有虚拟机，{'自动启动已关机的虚拟机' if auto_start else '仅监控状态'}")
         
+        # 检查监控是否已在运行
+        if monitor.monitoring:
+            logger.info("监控已在运行中，无需重复启动")
+            return jsonify({
+                'success': True,
+                'message': '监控已在运行中，无需重复启动',
+                'timestamp': datetime.now().isoformat()
+            })
+        
         # 记录启动时间
         if start_time:
             logger.info(f"监控启动时间: {start_time}")
@@ -779,20 +828,20 @@ def api_start_monitoring():
         # 格式化启动时间显示
         try:
             if start_time:
-                start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                # 使用当前时间作为启动时间，避免时区问题
+                formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
             else:
                 formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         except:
-            formatted_start_time = start_time or datetime.now().isoformat()
+            formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         
         # 后台日志控制台打印监控启动信息
         auto_start_text = "自动启动模式" if auto_start else "仅监控模式"
-        console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+        # 移除重复的启动信息输出，避免重复打印
+        # console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
         
         auto_start_text = "启用" if auto_start else "禁用"
         logger.info(f"自动监控启动成功: 间隔={interval}秒, 自动启动={auto_start_text}")
-        logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
         
         return jsonify({
             'success': True,
@@ -1411,19 +1460,23 @@ def api_save_auto_monitor_config():
                 if enabled:
                     # 记录新的启动时间
                     start_time = datetime.now().isoformat()
-                    monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                    # 仅在监控未运行时启动
+                    if not monitor.monitoring:
+                        monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                    else:
+                        logger.info("监控已在运行中，跳过启动")
                     
                     # 格式化启动时间显示
                     try:
-                        start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                        formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                        # 使用当前时间作为启动时间，避免时区问题
+                        formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                     except:
-                        formatted_start_time = start_time
+                        formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                     
                     # 后台日志控制台打印监控启动信息
                     auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
-                    console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
-                    console_logger.info(f"监控将立即开始第一次检查，然后每 {interval} 秒执行一次...")
+                    # 移除重复的启动信息输出，避免重复打印
+                    # console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
                     
                     logger.info(f"自动监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
                 else:
@@ -1431,19 +1484,23 @@ def api_save_auto_monitor_config():
             elif enabled:
                 # 如果监控未运行但配置为启用，启动监控
                 start_time = datetime.now().isoformat()
-                monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                # 仅在监控未运行时启动
+                if not monitor.monitoring:
+                    monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                else:
+                    logger.info("监控已在运行中，跳过启动")
                 
                 # 格式化启动时间显示
                 try:
-                    start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                    formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                    # 使用当前时间作为启动时间，避免时区问题
+                    formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                 except:
-                    formatted_start_time = start_time
+                    formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                 
                 # 后台日志控制台打印监控启动信息
                 auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
-                console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
-                console_logger.info(f"监控将立即开始第一次检查，然后每 {interval} 秒执行一次...")
+                # 移除重复的启动信息输出，避免重复打印
+                # console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
                 
                 logger.info(f"自动监控已启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
             else:
@@ -2226,6 +2283,25 @@ def api_manual_delete_vm(vm_name):
     except Exception as e:
         logger.error(f"手动删除虚拟机失败: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/vm/deleted')
+@login_required
+def api_get_deleted_vms():
+    """获取已删除的虚拟机列表"""
+    try:
+        monitor = get_vbox_monitor()
+        deleted_vms = monitor.get_deleted_vms()
+        return jsonify({
+            'success': True,
+            'data': deleted_vms,
+            'message': f'获取已删除虚拟机列表成功，共 {len(deleted_vms)} 个'
+        })
+    except Exception as e:
+        logger.error(f"获取已删除虚拟机列表失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'获取已删除虚拟机列表失败: {str(e)}'
+        })
 
 # 在模块导入时初始化监控器
 if not init_monitor():

@@ -11,6 +11,53 @@ SESSION_TIMEOUT = 3600  # 会话超时时间（秒）
 # VirtualBox虚拟机目录路径
 VBOX_DIR = r"D:\Users\wx\VirtualBox VMs"
 
+# 自动删除备份目录配置
+import os
+import time
+
+# 备份目录命名策略配置
+AUTO_DELETE_BACKUP_STRATEGY = "dynamic"  # 可选值: "dynamic", "fixed", "timestamp"
+
+# 动态备份目录配置
+if AUTO_DELETE_BACKUP_STRATEGY == "dynamic":
+    # 基于VBOX_DIR动态生成备份目录名称
+    VBOX_DIR_NAME = os.path.basename(VBOX_DIR)
+    AUTO_DELETE_BACKUP_DIR = f"{VBOX_DIR_NAME}_VM_DELETE_BAK"
+elif AUTO_DELETE_BACKUP_STRATEGY == "fixed":
+    # 固定备份目录名称
+    AUTO_DELETE_BACKUP_DIR = "delete_bak"
+elif AUTO_DELETE_BACKUP_STRATEGY == "timestamp":
+    # 带时间戳的备份目录名称
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    VBOX_DIR_NAME = os.path.basename(VBOX_DIR)
+    AUTO_DELETE_BACKUP_DIR = f"{VBOX_DIR_NAME}_VM_DELETE_BAK_{timestamp}"
+else:
+    # 默认使用动态策略
+    VBOX_DIR_NAME = os.path.basename(VBOX_DIR)
+    AUTO_DELETE_BACKUP_DIR = f"{VBOX_DIR_NAME}_VM_DELETE_BAK"
+
+# 备份目录位置配置
+AUTO_DELETE_BACKUP_LOCATION = "sibling"  # 可选值: "sibling", "custom", "relative"
+
+# 自定义备份目录路径（当AUTO_DELETE_BACKUP_LOCATION为"custom"时使用）
+AUTO_DELETE_CUSTOM_BACKUP_PATH = r"D:\VM_Backups"
+
+# 备份目录完整路径计算函数
+def get_backup_directory_path():
+    """获取备份目录的完整路径"""
+    if AUTO_DELETE_BACKUP_LOCATION == "sibling":
+        # 与VBOX_DIR同级别
+        return os.path.join(os.path.dirname(VBOX_DIR), AUTO_DELETE_BACKUP_DIR)
+    elif AUTO_DELETE_BACKUP_LOCATION == "custom":
+        # 使用自定义路径
+        return os.path.join(AUTO_DELETE_CUSTOM_BACKUP_PATH, AUTO_DELETE_BACKUP_DIR)
+    elif AUTO_DELETE_BACKUP_LOCATION == "relative":
+        # 相对于当前工作目录
+        return os.path.join(os.getcwd(), AUTO_DELETE_BACKUP_DIR)
+    else:
+        # 默认使用sibling策略
+        return os.path.join(os.path.dirname(VBOX_DIR), AUTO_DELETE_BACKUP_DIR)
+
 # VirtualBox可执行文件路径
 VBOXMANAGE_PATH = r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"
 
@@ -21,14 +68,22 @@ WEB_HOST = "0.0.0.0"
 
 # 日志级别
 LOG_LEVEL = "DEBUG"
+# 生成带时间戳的日志文件名
+from datetime import datetime
+
+def generate_log_filename(prefix):
+    """生成带时间戳的日志文件名"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"log/{prefix}_{timestamp}.log"
+
 # 日志文件路径
-LOG_FILE = "vbox_monitor.log"
+LOG_FILE = generate_log_filename("vbox_monitor")
 
 # Web日志文件路径
-WEB_LOG_FILE = "vbox_web.log"
+WEB_LOG_FILE = generate_log_filename("vbox_web")
 
 # 监控日志文件路径
-MONITOR_LOG_FILE = "monitor.log"
+MONITOR_LOG_FILE = generate_log_filename("monitor")
 
 # 监控日志级别
 MONITOR_LOG_LEVEL = "DEBUG"
@@ -71,6 +126,12 @@ VM_START_TIMEOUT = 60
 
 # 虚拟机停止超时时间（秒）
 VM_STOP_TIMEOUT = 30
+
+# 虚拟机启动重试间隔时间（秒）
+VM_START_RETRY_INTERVAL = 5
+
+# 虚拟机启动最大重试次数
+VM_START_MAX_RETRIES = 3
 
 # 扫描虚拟机超时时间（秒）
 SCAN_VMS_TIMEOUT = 30
@@ -227,8 +288,7 @@ AUTO_START_STOPPED_NUM = 2
 ENABLE_RANDOM_VM_SELECTION = True
 
 # 自动删除虚拟机配置
-AUTO_DELETE_ENABLED = False
+AUTO_DELETE_ENABLED = True
 AUTO_DELETE_MAX_COUNT = 10
-AUTO_DELETE_BACKUP_DIR = "delete_bak"
 
 

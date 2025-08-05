@@ -49,7 +49,15 @@ except ImportError:
     AUTO_DETECT_VBOXMANAGE = True
     VBOX_START_TYPE = "headless"
     LOG_LEVEL = "INFO"
-    LOG_FILE = "vbox_monitor.log"
+    # 生成带时间戳的日志文件名
+    from datetime import datetime
+    
+    def generate_log_filename(prefix):
+        """生成带时间戳的日志文件名"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"log/{prefix}_{timestamp}.log"
+    
+    LOG_FILE = generate_log_filename("vbox_monitor")
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
     VM_STATUS_TIMEOUT = 15
@@ -452,7 +460,7 @@ class VirtualBoxMonitor:
         return vms
     
     def _get_vm_path(self, vm_name: str) -> str:
-        """获取虚拟机文件路径"""
+        """获取虚拟机文件路径（支持递归查找）"""
         # 首先尝试从VBoxManage获取虚拟机信息
         try:
             result = subprocess.run(
@@ -477,14 +485,59 @@ class VirtualBoxMonitor:
         except Exception as e:
             logger.debug(f"无法从VBoxManage获取虚拟机 {vm_name} 的配置文件路径: {e}")
         
-        # 如果无法获取，使用默认路径
+        # 递归查找虚拟机目录
+        def find_vm_directory(base_dir, target_vm_name, depth=0):
+            """递归查找虚拟机目录"""
+            if depth > 10:  # 限制递归深度
+                return None
+            
+            try:
+                for item in os.listdir(base_dir):
+                    item_path = os.path.join(base_dir, item)
+                    
+                    if os.path.isdir(item_path):
+                        # 检查是否是目标虚拟机目录
+                        if item == target_vm_name:
+                            # 检查是否包含.vbox文件
+                            vbox_files = [f for f in os.listdir(item_path) if f.endswith('.vbox')]
+                            if vbox_files:
+                                logger.debug(f"找到虚拟机目录: {item_path}")
+                                return item_path
+                        
+                        # 递归搜索子目录
+                        sub_result = find_vm_directory(item_path, target_vm_name, depth + 1)
+                        if sub_result:
+                            return sub_result
+            except Exception as e:
+                logger.debug(f"搜索目录 {base_dir} 时出错: {e}")
+            
+            return None
+        
+        # 首先尝试直接路径
         vm_dir = os.path.join(self.vbox_dir, vm_name)
         vbox_file = os.path.join(vm_dir, f"{vm_name}.vbox")
         
         if os.path.exists(vbox_file):
+            logger.debug(f"找到虚拟机文件: {vbox_file}")
             return vbox_file
+        
+        # 如果直接路径不存在，递归查找
+        logger.debug(f"直接路径不存在，开始递归查找虚拟机 {vm_name}")
+        found_dir = find_vm_directory(self.vbox_dir, vm_name)
+        
+        if found_dir:
+            # 查找.vbox文件
+            vbox_files = [f for f in os.listdir(found_dir) if f.endswith('.vbox')]
+            if vbox_files:
+                vbox_file = os.path.join(found_dir, vbox_files[0])
+                logger.debug(f"递归找到虚拟机文件: {vbox_file}")
+                return vbox_file
+            else:
+                logger.debug(f"找到虚拟机目录但没有.vbox文件: {found_dir}")
+                return found_dir
         else:
-            return vm_dir
+            logger.warning(f"未找到虚拟机 {vm_name} 的目录")
+            return vm_dir  # 返回默认路径
     
     def _get_vm_uuid_from_vboxmanage(self, vm_name: str) -> str:
         """生成基于虚拟机名称的UUID，不再从VBoxManage获取"""
@@ -642,10 +695,16 @@ class VirtualBoxMonitor:
         
         try:
             console_logger.info(f"正在停止虚拟机: {vm_name}")
+            logger.info(f"🔄 执行停止命令: {self.vboxmanage_path} controlvm {vm_name} poweroff")
+            monitor_logger.info(f"🔄 执行停止命令: {self.vboxmanage_path} controlvm {vm_name} poweroff")
+            
             result = subprocess.run(
                 [self.vboxmanage_path, 'controlvm', vm_name, 'poweroff'],
                 capture_output=True, timeout=30  # 保持30秒超时
             )
+            
+            logger.info(f"🔄 停止命令执行完成，返回码: {result.returncode}")
+            monitor_logger.info(f"🔄 停止命令执行完成，返回码: {result.returncode}")
             
             # 简化编码处理
             try:
@@ -759,8 +818,17 @@ class VirtualBoxMonitor:
                 'path': vm['path'],
                 'status': real_status,  # 使用真实状态
                 'last_check': vm['last_check'],
-                'start_count': self.get_vm_start_count(vm['name'])  # 添加启动次数
+                'start_count': self.get_vm_start_count(vm['name']),  # 添加启动次数
+                'delete_threshold': self.max_start_count  # 添加删除阈值
             }
+            
+            # 检查虚拟机是否已被删除
+            if self.is_vm_deleted(vm['name']):
+                vm_info['deleted'] = True
+                vm_info['status'] = 'deleted'  # 覆盖状态为已删除
+                # 添加备份路径信息
+                backup_dir = os.path.join(os.path.dirname(self.vbox_dir), self.delete_backup_dir)
+                vm_info['backup_path'] = backup_dir
             
             # 添加启动失败信息
             if vm['name'] in start_failures:
@@ -1023,16 +1091,28 @@ class VirtualBoxMonitor:
                     logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
                     monitor_logger.warning("无法导入MASTER_VM_EXCEPTIONS配置，跳过母盘虚拟机检查")
             
-            # 尝试启动虚拟机，最多重试2次
+            # 尝试启动虚拟机，使用配置文件中的重试设置
             vm_started = False
             retry_count = 0
-            max_retries = 2
+            
+            # 从配置文件获取重试设置
+            try:
+                from config import VM_START_MAX_RETRIES, VM_START_RETRY_INTERVAL
+                max_retries = VM_START_MAX_RETRIES
+                retry_interval = VM_START_RETRY_INTERVAL
+            except ImportError:
+                # 如果无法获取配置，使用默认值
+                max_retries = 3
+                retry_interval = 5
+                monitor_logger.warning("无法获取虚拟机重试配置，使用默认值")
             
             while retry_count <= max_retries and not vm_started:
                 if retry_count > 0:
                     console_logger.info(f"第 {retry_count} 次重试启动虚拟机: {vm['name']}")
                     monitor_logger.info(f"第 {retry_count} 次重试启动虚拟机: {vm['name']}")
-                    time.sleep(2)  # 重试前等待2秒
+                    console_logger.info(f"等待 {retry_interval} 秒后进行重试...")
+                    monitor_logger.info(f"等待 {retry_interval} 秒后进行重试...")
+                    time.sleep(retry_interval)  # 使用配置文件中的重试间隔时间
                 else:
                     console_logger.info(f"准备启动第 {started_count + 1} 个虚拟机: {vm['name']}")
                     monitor_logger.debug(f"尝试启动虚拟机: {vm['name']}")
@@ -1114,25 +1194,26 @@ class VirtualBoxMonitor:
         
         # 格式化启动时间显示
         try:
-            start_datetime = datetime.fromisoformat(self.monitor_start_time.replace('Z', '+00:00'))
-            formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+            # 使用当前时间作为启动时间，避免时区问题
+            formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         except:
-            formatted_start_time = self.monitor_start_time
+            formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         
         # 后台日志控制台打印监控启动信息
         auto_start_text = "自动启动模式" if auto_start else "仅监控模式"
-        console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+        # 移除重复的启动信息输出，避免重复打印
+        # console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
         
+        # 保留一条主要的启动信息
         logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
         monitor_logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
-        monitor_logger.info(f"自动监控启动时间: {self.monitor_start_time}")
-        monitor_logger.info(f"自动监控状态: 已开启，执行间隔: {interval}秒")
-        monitor_logger.info(f"监控配置详情: 间隔={interval}秒, 自动启动={auto_start}, 启动时间={self.monitor_start_time}")
-        monitor_logger.info(f"监控实例auto_start_enabled设置: {self.auto_start_enabled} (类型: {type(self.auto_start_enabled)})")
+        # 移除重复的启动时间信息
+        # monitor_logger.info(f"自动监控启动时间: {self.monitor_start_time}")
+        # monitor_logger.info(f"监控配置详情: 间隔={interval}秒, 自动启动={auto_start}, 启动时间={self.monitor_start_time}")
         
         def monitor_task():
             # 记录监控任务启动信息
-            monitor_logger.info(f"监控任务启动，间隔: {interval}秒，自动启动: {auto_start}")
+            monitor_logger.debug(f"监控任务启动，间隔: {interval}秒，自动启动: {auto_start}")
             
             # 计算第一次执行的时间
             if start_time:
@@ -1147,7 +1228,7 @@ class VirtualBoxMonitor:
                 except Exception as e:
                     monitor_logger.warning(f"时间计算错误，立即开始监控: {e}")
             
-            monitor_logger.info(f"开始监控循环，间隔: {interval}秒")
+            monitor_logger.debug(f"开始监控循环，间隔: {interval}秒")
             
             # 保存初始间隔值，使用动态获取的最新值
             try:
@@ -1158,18 +1239,30 @@ class VirtualBoxMonitor:
                 monitor_logger.warning("无法获取AUTO_MONITOR_INTERVAL_VALUE配置，使用传入的间隔值")
             
             # 立即执行第一次检查
-            monitor_logger.info("立即执行第一次监控检查...")
+            monitor_logger.debug("立即执行第一次监控检查...")
             
             # 记录监控循环开始时间
             loop_start_time = time.time()
-            monitor_logger.info(f"监控循环开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            monitor_logger.debug(f"监控循环开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            # 计算下次执行时间，确保严格按照间隔执行
+            next_execution_time = datetime.now()
             
             while self.monitoring:
                 try:
+                    # 计算当前时间与下次执行时间的差值
+                    current_time = datetime.now()
+                    time_until_next = (next_execution_time - current_time).total_seconds()
+                    
+                    # 如果距离下次执行还有时间，则等待
+                    if time_until_next > 0:
+                        monitor_logger.debug(f"等待 {time_until_next:.2f} 秒后执行下次检查")
+                        time.sleep(time_until_next)
+                    
                     # 记录本次执行开始时间
                     execution_start_time = time.time()
-                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    monitor_logger.info(f"开始执行监控检查 - {current_time}")
+                    current_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    monitor_logger.debug(f"开始执行监控检查 - {current_time_str}")
                     
                     # 动态获取最新的配置
                     try:
@@ -1312,6 +1405,44 @@ class VirtualBoxMonitor:
                         # 使用详细的状态统计日志，不再显示简单的消息
                         self.last_monitor_results = []
                     
+                    # 检查自动删除
+                    if self.auto_delete_enabled:
+                        console_logger.info("🔍 检查自动删除条件...")
+                        monitor_logger.info("🔍 检查自动删除条件...")
+                        
+                        deleted_vms = []
+                        for vm in vm_status_list:
+                            vm_name = vm['name']
+                            current_count = self.vm_start_counts.get(vm_name, 0)
+                            
+                            if current_count >= self.max_start_count:
+                                # 检查是否已被删除
+                                if not self.is_vm_deleted(vm_name):
+                                    console_logger.warning(f"🚨 检测到虚拟机 {vm_name} 启动次数 {current_count} 已达到删除阈值 {self.max_start_count}")
+                                    monitor_logger.warning(f"🚨 检测到虚拟机 {vm_name} 启动次数 {current_count} 已达到删除阈值 {self.max_start_count}")
+                                    console_logger.info(f"🔄 准备启动自动删除任务...")
+                                    monitor_logger.info(f"🔄 准备启动自动删除任务...")
+                                    
+                                    # 异步执行删除操作
+                                    import threading
+                                    delete_thread = threading.Thread(target=self.auto_delete_vm, args=(vm_name,))
+                                    delete_thread.daemon = True
+                                    delete_thread.start()
+                                    
+                                    deleted_vms.append(vm_name)
+                                    console_logger.info(f"✅ 虚拟机 {vm_name} 自动删除任务已启动")
+                                    monitor_logger.info(f"✅ 虚拟机 {vm_name} 自动删除任务已启动")
+                                else:
+                                    monitor_logger.debug(f"ℹ️ 虚拟机 {vm_name} 已被标记为删除")
+                        
+                        if deleted_vms:
+                            console_logger.info(f"📊 本次检查启动了 {len(deleted_vms)} 个自动删除任务")
+                            monitor_logger.info(f"📊 本次检查启动了 {len(deleted_vms)} 个自动删除任务")
+                        else:
+                            monitor_logger.debug("📊 本次检查没有需要删除的虚拟机")
+                    else:
+                        monitor_logger.debug("📊 自动删除功能未启用，跳过检查")
+                    
                 except Exception as e:
                     console_logger.error(f"监控任务出错: {e}")
                     monitor_logger.error(f"监控任务出错: {e}")
@@ -1320,6 +1451,29 @@ class VirtualBoxMonitor:
                 # 计算本次执行耗时
                 execution_time = time.time() - execution_start_time
                 monitor_logger.debug(f"本次监控执行耗时: {execution_time:.2f}秒")
+                
+                # 统计本次执行结果
+                total_vms_checked = len(vm_status_list)
+                running_vms_count = len(running_vms)
+                stopped_vms_count = len(stopped_vms)
+                paused_vms_count = len(paused_vms)
+                error_vms_count = len(error_vms)
+                
+                # 统计启动的虚拟机数量
+                started_vms_count = 0
+                failed_start_count = 0
+                if self.last_monitor_results:
+                    started_vms_count = sum(1 for r in self.last_monitor_results if r['action'] == 'start' and r['success'])
+                    failed_start_count = sum(1 for r in self.last_monitor_results if r['action'] == 'start' and not r['success'])
+                
+                # 打印详细的执行结果
+                execution_summary = f"本次监控任务执行结果 - 检查虚拟机: {total_vms_checked}台 (运行中: {running_vms_count}台, 已关闭: {stopped_vms_count}台, 暂停: {paused_vms_count}台, 异常: {error_vms_count}台)"
+                execution_summary += f", 启动虚拟机: {started_vms_count}台"
+                if failed_start_count > 0:
+                    execution_summary += f", 启动失败: {failed_start_count}台"
+                
+                console_logger.info(execution_summary)
+                monitor_logger.info(execution_summary)
                 
                 # 动态获取最新的间隔值
                 try:
@@ -1335,26 +1489,25 @@ class VirtualBoxMonitor:
                     monitor_logger.warning("无法获取AUTO_MONITOR_INTERVAL_VALUE配置，使用默认值300秒")
                     current_interval = 300
                 
-                # 计算需要等待的时间，确保严格按照间隔执行
+                # 计算下次执行时间，确保严格按照间隔执行
                 # 使用动态获取的最新间隔值，确保配置变化时能及时生效
-                wait_time = max(0, current_interval - execution_time)
-                monitor_logger.debug(f"本次执行耗时: {execution_time:.2f}秒，设定间隔: {current_interval}秒，等待时间: {wait_time:.2f}秒")
+                next_execution_time = next_execution_time + timedelta(seconds=current_interval)
                 
-                if wait_time > 0:
-                    next_execution_time = datetime.now() + timedelta(seconds=wait_time)
-                    monitor_logger.debug(f"自动监控等待 {wait_time:.2f} 秒后执行下次检查 (间隔: {current_interval}秒)")
-                    monitor_logger.debug(f"下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                    time.sleep(wait_time)
-                else:
-                    monitor_logger.warning(f"自动监控执行时间 ({execution_time:.2f}秒) 超过了设定间隔 ({current_interval}秒)，立即执行下次检查")
-                    next_execution_time = datetime.now()
+                # 计算本次执行耗时
+                execution_time = time.time() - execution_start_time
+                monitor_logger.debug(f"本次执行耗时: {execution_time:.2f}秒，设定间隔: {current_interval}秒")
+                
+                # 显示下次执行时间
+                next_execution_msg = f"下次监控任务执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                console_logger.info(next_execution_msg)
+                monitor_logger.info(next_execution_msg)
                 
                 # 添加调试信息
-                monitor_logger.debug(f"监控循环完成，等待时间: {wait_time:.2f}秒，下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                monitor_logger.debug(f"监控循环完成，下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 # 记录本次循环完成时间
                 loop_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                monitor_logger.info(f"本次监控检查完成 - {loop_completion_time}")
+                monitor_logger.debug(f"本次监控检查完成 - {loop_completion_time}")
         
         self.monitor_thread = threading.Thread(target=monitor_task, daemon=MONITOR_THREAD_DAEMON)
         self.monitor_thread.start()
@@ -1478,11 +1631,38 @@ class VirtualBoxMonitor:
             stopped_vms = len([vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']])
             paused_vms = len([vm for vm in vm_status_list if vm['status'] == 'paused'])
             
-            # 检查状态变化
+            # 检查状态变化和自动删除
             status_changes = []
+            deleted_vms = []
             current_time = datetime.now()
             
             for vm in vm_status_list:
+                # 检查自动删除
+                if self.auto_delete_enabled:
+                    vm_name = vm['name']
+                    current_count = self.vm_start_counts.get(vm_name, 0)
+                    
+                    if current_count >= self.max_start_count:
+                        # 检查是否已被删除
+                        if not self.is_vm_deleted(vm_name):
+                            logger.warning(f"🚨 检测到虚拟机 {vm_name} 启动次数 {current_count} 已达到删除阈值 {self.max_start_count}")
+                            monitor_logger.warning(f"🚨 检测到虚拟机 {vm_name} 启动次数 {current_count} 已达到删除阈值 {self.max_start_count}")
+                            logger.info(f"🔄 准备启动自动删除任务...")
+                            monitor_logger.info(f"🔄 准备启动自动删除任务...")
+                            
+                            # 异步执行删除操作
+                            import threading
+                            delete_thread = threading.Thread(target=self.auto_delete_vm, args=(vm_name,))
+                            delete_thread.daemon = True
+                            delete_thread.start()
+                            
+                            deleted_vms.append(vm_name)
+                            logger.info(f"✅ 虚拟机 {vm_name} 自动删除任务已启动")
+                            monitor_logger.info(f"✅ 虚拟机 {vm_name} 自动删除任务已启动")
+                        else:
+                            logger.debug(f"ℹ️ 虚拟机 {vm_name} 已被标记为删除")
+                            monitor_logger.debug(f"ℹ️ 虚拟机 {vm_name} 已被标记为删除")
+                
                 # 这里可以添加状态变化检测逻辑
                 # 暂时返回基本统计信息
                 pass
@@ -1494,6 +1674,7 @@ class VirtualBoxMonitor:
                 'stopped_vms': stopped_vms,
                 'paused_vms': paused_vms,
                 'status_changes': status_changes,
+                'deleted_vms': deleted_vms,
                 'vm_details': vm_status_list
             }
             
@@ -1510,6 +1691,7 @@ class VirtualBoxMonitor:
                 'stopped_vms': 0,
                 'paused_vms': 0,
                 'status_changes': [],
+                'deleted_vms': [],
                 'vm_details': []
             }
 
@@ -1735,6 +1917,66 @@ class VirtualBoxMonitor:
             Optional[Dict]: 异常状态信息，如果没有异常则返回None
         """
         return self.vm_exceptions.get(vm_name)
+    
+    def mark_vm_as_deleted(self, vm_name: str):
+        """标记虚拟机为已删除状态"""
+        try:
+            # 加载已删除虚拟机列表
+            deleted_vms = self.load_deleted_vms()
+            if vm_name not in deleted_vms:
+                deleted_vms.append(vm_name)
+                self.save_deleted_vms(deleted_vms)
+                logger.info(f"虚拟机 {vm_name} 已标记为删除状态")
+        except Exception as e:
+            logger.error(f"标记虚拟机 {vm_name} 为删除状态失败: {e}")
+    
+    def is_vm_deleted(self, vm_name: str) -> bool:
+        """检查虚拟机是否已被删除"""
+        try:
+            deleted_vms = self.load_deleted_vms()
+            return vm_name in deleted_vms
+        except Exception as e:
+            logger.error(f"检查虚拟机 {vm_name} 删除状态失败: {e}")
+            return False
+    
+    def load_deleted_vms(self) -> List[str]:
+        """加载已删除虚拟机列表"""
+        try:
+            deleted_vms_file = os.path.join(os.path.dirname(__file__), 'deleted_vms.json')
+            if os.path.exists(deleted_vms_file):
+                with open(deleted_vms_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return []
+        except Exception as e:
+            logger.error(f"加载已删除虚拟机列表失败: {e}")
+            return []
+    
+    def save_deleted_vms(self, deleted_vms: List[str]):
+        """保存已删除虚拟机列表"""
+        try:
+            deleted_vms_file = os.path.join(os.path.dirname(__file__), 'deleted_vms.json')
+            with open(deleted_vms_file, 'w', encoding='utf-8') as f:
+                json.dump(deleted_vms, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"保存已删除虚拟机列表失败: {e}")
+    
+    def get_deleted_vms(self) -> List[str]:
+        """获取所有已删除的虚拟机列表"""
+        return self.load_deleted_vms()
+    
+    def _get_directory_size(self, directory_path: str) -> float:
+        """计算目录大小（MB）"""
+        try:
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(directory_path):
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    if os.path.exists(filepath):
+                        total_size += os.path.getsize(filepath)
+            return round(total_size / (1024 * 1024), 2)  # 转换为MB
+        except Exception as e:
+            logger.warning(f"计算目录大小失败: {e}")
+            return 0.0
 
     def _handle_vbox_service_issue(self, vm_name: str, operation: str, error: Exception):
         """
@@ -1785,16 +2027,39 @@ class VirtualBoxMonitor:
         try:
             # 从配置文件加载自动删除配置
             try:
-                from config import AUTO_DELETE_ENABLED, AUTO_DELETE_MAX_COUNT, AUTO_DELETE_BACKUP_DIR
+                from config import (
+                    AUTO_DELETE_ENABLED, 
+                    AUTO_DELETE_MAX_COUNT, 
+                    AUTO_DELETE_BACKUP_DIR,
+                    AUTO_DELETE_BACKUP_STRATEGY,
+                    AUTO_DELETE_BACKUP_LOCATION,
+                    get_backup_directory_path
+                )
                 self.auto_delete_enabled = AUTO_DELETE_ENABLED
                 self.max_start_count = AUTO_DELETE_MAX_COUNT
                 self.delete_backup_dir = AUTO_DELETE_BACKUP_DIR
-                logger.info(f"从配置文件加载自动删除配置: 启用={self.auto_delete_enabled}, 最大次数={self.max_start_count}, 备份目录={self.delete_backup_dir}")
-            except ImportError:
-                logger.warning("无法从配置文件加载自动删除配置，使用默认值")
+                self.backup_strategy = AUTO_DELETE_BACKUP_STRATEGY
+                self.backup_location = AUTO_DELETE_BACKUP_LOCATION
+                self.get_backup_path = get_backup_directory_path
+                
+                logger.info(f"从配置文件加载自动删除配置:")
+                logger.info(f"  - 启用状态: {self.auto_delete_enabled}")
+                logger.info(f"  - 最大次数: {self.max_start_count}")
+                logger.info(f"  - 备份目录名称: {self.delete_backup_dir}")
+                logger.info(f"  - 备份策略: {self.backup_strategy}")
+                logger.info(f"  - 备份位置: {self.backup_location}")
+                
+                # 计算实际备份路径
+                actual_backup_path = get_backup_directory_path()
+                logger.info(f"  - 实际备份路径: {actual_backup_path}")
+                
+            except ImportError as e:
+                logger.warning(f"无法从配置文件加载自动删除配置: {e}，使用默认值")
                 self.auto_delete_enabled = False
                 self.max_start_count = 10
                 self.delete_backup_dir = "delete_bak"
+                self.backup_strategy = "dynamic"
+                self.backup_location = "sibling"
             
             if os.path.exists(self.vm_config_file):
                 with open(self.vm_config_file, 'r', encoding='utf-8') as f:
@@ -1889,70 +2154,166 @@ class VirtualBoxMonitor:
             self.delete_backup_dir = backup_dir
 
     def auto_delete_vm(self, vm_name: str) -> bool:
-        """自动删除虚拟机"""
+        """自动删除虚拟机（实际为移动虚拟机文件）"""
         try:
-            logger.info(f"开始自动删除虚拟机: {vm_name}")
-            monitor_logger.info(f"开始自动删除虚拟机: {vm_name}")
+            # 打印详细的删除开始日志
+            logger.info("=" * 60)
+            logger.info(f"🚀 开始自动删除虚拟机: {vm_name}")
+            logger.info(f"⏰ 删除时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            monitor_logger.info("=" * 60)
+            monitor_logger.info(f"🚀 开始自动删除虚拟机: {vm_name}")
+            monitor_logger.info(f"⏰ 删除时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             # 检查自动删除是否启用
+            logger.info(f"📋 检查自动删除配置...")
             if not self.auto_delete_enabled:
-                logger.warning(f"自动删除功能未启用，跳过虚拟机 {vm_name}")
+                logger.warning(f"❌ 自动删除功能未启用，跳过虚拟机 {vm_name}")
+                monitor_logger.warning(f"❌ 自动删除功能未启用，跳过虚拟机 {vm_name}")
                 return False
+            logger.info(f"✅ 自动删除功能已启用")
             
             # 检查监控是否启用（通过配置文件检查）
+            logger.info(f"📋 检查监控状态...")
             try:
                 from config import AUTO_MONITOR_BUTTON_ENABLED
                 if not AUTO_MONITOR_BUTTON_ENABLED:
-                    logger.warning(f"监控功能未启用，跳过自动删除虚拟机 {vm_name}")
+                    logger.warning(f"❌ 监控功能未启用，跳过自动删除虚拟机 {vm_name}")
+                    monitor_logger.warning(f"❌ 监控功能未启用，跳过自动删除虚拟机 {vm_name}")
                     return False
+                logger.info(f"✅ 监控功能已启用")
             except ImportError:
-                logger.warning(f"无法检查监控状态，跳过自动删除虚拟机 {vm_name}")
+                logger.warning(f"⚠️ 无法检查监控状态，跳过自动删除虚拟机 {vm_name}")
+                monitor_logger.warning(f"⚠️ 无法检查监控状态，跳过自动删除虚拟机 {vm_name}")
                 return False
             
             # 检查启动次数是否达到阈值
             current_count = self.vm_start_counts.get(vm_name, 0)
+            logger.info(f"📊 虚拟机 {vm_name} 当前启动次数: {current_count}")
+            logger.info(f"📊 删除阈值: {self.max_start_count}")
+            
             if current_count < self.max_start_count:
-                logger.warning(f"虚拟机 {vm_name} 启动次数 {current_count} 未达到删除阈值 {self.max_start_count}")
+                logger.warning(f"❌ 虚拟机 {vm_name} 启动次数 {current_count} 未达到删除阈值 {self.max_start_count}")
+                monitor_logger.warning(f"❌ 虚拟机 {vm_name} 启动次数 {current_count} 未达到删除阈值 {self.max_start_count}")
                 return False
             
-            # 创建备份目录
-            if not os.path.exists(self.delete_backup_dir):
-                os.makedirs(self.delete_backup_dir)
-                logger.info(f"创建备份目录: {self.delete_backup_dir}")
+            logger.info(f"✅ 虚拟机 {vm_name} 启动次数已达到删除阈值，开始删除流程")
             
-            # 查找虚拟机目录
-            vm_dir = os.path.join(self.vbox_dir, vm_name)
+            # 首先停止虚拟机
+            logger.info(f"🛑 开始停止虚拟机 {vm_name}...")
+            monitor_logger.info(f"🛑 开始停止虚拟机 {vm_name}...")
+            
+            # 添加更详细的停止过程日志
+            try:
+                stop_result = self.stop_vm(vm_name)
+                logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
+                monitor_logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
+                
+                if not stop_result:
+                    logger.warning(f"⚠️ 停止虚拟机 {vm_name} 失败，但继续删除流程")
+                    monitor_logger.warning(f"⚠️ 停止虚拟机 {vm_name} 失败，但继续删除流程")
+                else:
+                    logger.info(f"✅ 虚拟机 {vm_name} 停止成功")
+                    monitor_logger.info(f"✅ 虚拟机 {vm_name} 停止成功")
+            except Exception as e:
+                logger.error(f"❌ 停止虚拟机 {vm_name} 时发生异常: {e}")
+                monitor_logger.error(f"❌ 停止虚拟机 {vm_name} 时发生异常: {e}")
+                # 即使停止失败，也继续删除流程
+                stop_result = False
+            
+            # 等待一段时间确保虚拟机完全停止
+            logger.info(f"⏳ 等待虚拟机完全停止...")
+            import time
+            time.sleep(3)
+            logger.info(f"✅ 等待完成")
+            
+            # 创建备份目录（使用新的配置系统）
+            try:
+                from config import get_backup_directory_path
+                backup_dir = get_backup_directory_path()
+                logger.info(f"📁 备份目录路径: {backup_dir}")
+                logger.info(f"📋 备份策略: {getattr(self, 'backup_strategy', 'dynamic')}")
+                logger.info(f"📋 备份位置: {getattr(self, 'backup_location', 'sibling')}")
+            except ImportError:
+                # 如果无法导入新配置，使用旧逻辑
+                backup_dir = os.path.join(os.path.dirname(self.vbox_dir), self.delete_backup_dir)
+                logger.info(f"📁 使用旧配置备份目录路径: {backup_dir}")
+            
+            if not os.path.exists(backup_dir):
+                logger.info(f"📁 创建备份目录: {backup_dir}")
+                monitor_logger.info(f"📁 创建备份目录: {backup_dir}")
+                os.makedirs(backup_dir)
+                logger.info(f"✅ 备份目录创建成功")
+            else:
+                logger.info(f"✅ 备份目录已存在")
+            
+            # 查找虚拟机目录（支持递归查找）
+            vm_path = self._get_vm_path(vm_name)
+            logger.info(f"📁 虚拟机路径: {vm_path}")
+            
+            # 确定虚拟机目录（如果返回的是.vbox文件，则获取其目录）
+            if vm_path.endswith('.vbox'):
+                vm_dir = os.path.dirname(vm_path)
+            else:
+                vm_dir = vm_path
+            
+            logger.info(f"📁 虚拟机目录路径: {vm_dir}")
+            
             if not os.path.exists(vm_dir):
-                logger.error(f"虚拟机目录不存在: {vm_dir}")
+                logger.error(f"❌ 虚拟机目录不存在: {vm_dir}")
+                monitor_logger.error(f"❌ 虚拟机目录不存在: {vm_dir}")
                 return False
+            
+            logger.info(f"✅ 虚拟机目录存在，大小: {self._get_directory_size(vm_dir)} MB")
             
             # 移动虚拟机目录到备份目录
-            backup_path = os.path.join(self.delete_backup_dir, vm_name)
+            backup_path = os.path.join(backup_dir, vm_name)
+            logger.info(f"📁 目标备份路径: {backup_path}")
+            
             if os.path.exists(backup_path):
                 # 如果备份目录已存在，添加时间戳
-                import time
                 timestamp = int(time.time())
                 backup_path = f"{backup_path}_{timestamp}"
-                logger.info(f"备份目录已存在，使用时间戳命名: {backup_path}")
+                logger.info(f"📁 备份目录已存在，使用时间戳命名: {backup_path}")
+                monitor_logger.info(f"📁 备份目录已存在，使用时间戳命名: {backup_path}")
             
             # 移动目录
+            logger.info(f"🔄 开始移动虚拟机文件...")
+            monitor_logger.info(f"🔄 开始移动虚拟机文件...")
             import shutil
             shutil.move(vm_dir, backup_path)
             
-            logger.info(f"虚拟机 {vm_name} 已移动到备份目录: {backup_path}")
-            monitor_logger.info(f"虚拟机 {vm_name} 已移动到备份目录: {backup_path}")
+            logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
+            monitor_logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
             
-            # 从配置中移除
+            # 标记虚拟机为已删除状态
+            logger.info(f"🏷️ 标记虚拟机为已删除状态...")
+            self.mark_vm_as_deleted(vm_name)
+            logger.info(f"✅ 虚拟机 {vm_name} 已标记为删除状态")
+            
+            # 从配置中移除启动次数记录
             if vm_name in self.vm_start_counts:
+                logger.info(f"🗑️ 从配置中移除虚拟机 {vm_name} 的启动次数记录...")
                 del self.vm_start_counts[vm_name]
                 self.save_vm_config()
-                logger.info(f"已从配置中移除虚拟机 {vm_name} 的启动次数记录")
+                logger.info(f"✅ 已从配置中移除虚拟机 {vm_name} 的启动次数记录")
+            
+            # 打印删除完成日志
+            logger.info(f"🎉 虚拟机 {vm_name} 自动删除完成！")
+            logger.info(f"📁 备份位置: {backup_path}")
+            logger.info(f"📊 删除原因: 启动次数 {current_count} 已达到阈值 {self.max_start_count}")
+            logger.info("=" * 60)
+            monitor_logger.info(f"🎉 虚拟机 {vm_name} 自动删除完成！")
+            monitor_logger.info(f"📁 备份位置: {backup_path}")
+            monitor_logger.info(f"📊 删除原因: 启动次数 {current_count} 已达到阈值 {self.max_start_count}")
+            monitor_logger.info("=" * 60)
             
             return True
             
         except Exception as e:
-            logger.error(f"自动删除虚拟机 {vm_name} 失败: {e}")
-            monitor_logger.error(f"自动删除虚拟机 {vm_name} 失败: {e}")
+            logger.error(f"❌ 自动删除虚拟机 {vm_name} 失败: {e}")
+            monitor_logger.error(f"❌ 自动删除虚拟机 {vm_name} 失败: {e}")
+            logger.error("=" * 60)
+            monitor_logger.error("=" * 60)
             return False
 
 

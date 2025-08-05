@@ -185,15 +185,49 @@ VM_START_TIMEOUT = 60
 
 # 虚拟机停止超时时间（秒）
 VM_STOP_TIMEOUT = 30
+
+# 虚拟机启动重试间隔时间（秒）
+VM_START_RETRY_INTERVAL = 5
+
+# 虚拟机启动最大重试次数
+VM_START_MAX_RETRIES = 3
+```
+
+### 虚拟机重试机制
+
+当虚拟机启动失败时，系统会按照配置文件中的设置进行重试：
+
+- **重试间隔时间**: 5秒（可配置）
+- **最大重试次数**: 3次（可配置）
+- **重试日志**: 每次重试前会显示等待时间
+
+重试过程示例：
+```
+2025-08-05 11:25:51,013 - WARNING - 启动虚拟机 centos7-009 失败，将进行第 1 次重试
+2025-08-05 11:25:51,013 - INFO - 第 1 次重试启动虚拟机: centos7-009
+2025-08-05 11:25:51,013 - INFO - 等待 5 秒后进行重试...
+2025-08-05 11:25:56,015 - INFO - 正在启动虚拟机: centos7-009
+2025-08-05 11:25:56,124 - WARNING - 启动虚拟机 centos7-009 失败，将进行第 2 次重试
 ```
 
 ### 日志配置
 ```python
+# 生成带时间戳的日志文件名
+from datetime import datetime
+
+def generate_log_filename(prefix):
+    """生成带时间戳的日志文件名"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"log/{prefix}_{timestamp}.log"
+
 # 日志文件路径
-LOG_FILE = "vbox_monitor.log"
+LOG_FILE = generate_log_filename("vbox_monitor")
 
 # Web日志文件路径
-WEB_LOG_FILE = "vbox_web.log"
+WEB_LOG_FILE = generate_log_filename("vbox_web")
+
+# 监控日志文件路径
+MONITOR_LOG_FILE = generate_log_filename("monitor")
 
 # 日志格式
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
@@ -213,8 +247,16 @@ LOG_ENCODING = "utf-8"
 
 ## 日志文件
 
-- `vbox_monitor.log`: 监控脚本日志
-- `vbox_web.log`: Web应用日志
+日志文件统一存储在项目目录的 `log/` 文件夹中，按照启动时间自动命名，格式为：`log/{前缀}_{YYYYMMDD_HHMMSS}.log`
+
+- `log/vbox_monitor_{timestamp}.log`: 监控脚本日志
+- `log/vbox_web_{timestamp}.log`: Web应用日志  
+- `log/monitor_{timestamp}.log`: 监控专用日志
+
+例如：
+- `log/vbox_monitor_20250805_110025.log`
+- `log/vbox_web_20250805_110025.log`
+- `log/monitor_20250805_110025.log`
 
 ## 故障排除
 

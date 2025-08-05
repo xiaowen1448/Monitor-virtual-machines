@@ -1,2 +1,4 @@
 Flask>=2.0.0
+Flask-Session>=0.5.0
 schedule>=1.2.0 
+flask_session>=0.5.0
