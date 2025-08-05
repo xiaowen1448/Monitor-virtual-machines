@@ -147,22 +147,22 @@ LOG_LEVEL = "INFO"
 # 自动启动已停止的虚拟机
 AUTO_START_STOPPED_VMS = True
 
-# 生成带时间戳的日志文件名
+# 生成按天的日志文件名
 from datetime import datetime
 
-def generate_log_filename(prefix):
-    """生成带时间戳的日志文件名"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"log/{prefix}_{timestamp}.log"
+def generate_daily_log_filename(prefix):
+    """生成按天的日志文件名"""
+    date_str = datetime.now().strftime("%Y%m%d")
+    return f"log/{prefix}_{date_str}.log"
 
-# 日志文件路径
-LOG_FILE = generate_log_filename("vbox_monitor")
+# 日志文件路径（按天生成）
+LOG_FILE = generate_daily_log_filename("vbox_monitor")
 
-# Web日志文件路径
-WEB_LOG_FILE = generate_log_filename("vbox_web")
+# Web日志文件路径（按天生成）
+WEB_LOG_FILE = generate_daily_log_filename("vbox_web")
 
-# 监控日志文件路径
-MONITOR_LOG_FILE = generate_log_filename("monitor")
+# 监控日志文件路径（按天生成）
+MONITOR_LOG_FILE = generate_daily_log_filename("monitor")
 
 # 监控日志级别
 MONITOR_LOG_LEVEL = "DEBUG"

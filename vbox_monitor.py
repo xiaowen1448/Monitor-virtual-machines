@@ -49,15 +49,15 @@ except ImportError:
     AUTO_DETECT_VBOXMANAGE = True
     VBOX_START_TYPE = "headless"
     LOG_LEVEL = "INFO"
-    # 生成带时间戳的日志文件名
+    # 生成按天的日志文件名
     from datetime import datetime
     
-    def generate_log_filename(prefix):
-        """生成带时间戳的日志文件名"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"log/{prefix}_{timestamp}.log"
+    def generate_daily_log_filename(prefix):
+        """生成按天的日志文件名"""
+        date_str = datetime.now().strftime("%Y%m%d")
+        return f"log/{prefix}_{date_str}.log"
     
-    LOG_FILE = generate_log_filename("vbox_monitor")
+    LOG_FILE = generate_daily_log_filename("vbox_monitor")
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
     VM_STATUS_TIMEOUT = 15
@@ -698,6 +698,10 @@ class VirtualBoxMonitor:
             logger.info(f"🔄 执行停止命令: {self.vboxmanage_path} controlvm {vm_name} poweroff")
             monitor_logger.info(f"🔄 执行停止命令: {self.vboxmanage_path} controlvm {vm_name} poweroff")
             
+            # 强制刷新日志输出
+            import sys
+            sys.stdout.flush()
+            
             result = subprocess.run(
                 [self.vboxmanage_path, 'controlvm', vm_name, 'poweroff'],
                 capture_output=True, timeout=30  # 保持30秒超时
@@ -705,6 +709,9 @@ class VirtualBoxMonitor:
             
             logger.info(f"🔄 停止命令执行完成，返回码: {result.returncode}")
             monitor_logger.info(f"🔄 停止命令执行完成，返回码: {result.returncode}")
+            
+            # 强制刷新日志输出
+            sys.stdout.flush()
             
             # 简化编码处理
             try:
@@ -1931,13 +1938,37 @@ class VirtualBoxMonitor:
             logger.error(f"标记虚拟机 {vm_name} 为删除状态失败: {e}")
     
     def is_vm_deleted(self, vm_name: str) -> bool:
-        """检查虚拟机是否已被删除"""
+        """检查虚拟机是否已被删除（从备份目录检查）"""
         try:
-            deleted_vms = self.load_deleted_vms()
-            return vm_name in deleted_vms
+            # 获取备份目录路径
+            from config import get_backup_directory_path
+            backup_dir = get_backup_directory_path()
+            
+            if not os.path.exists(backup_dir):
+                logger.debug(f"备份目录不存在: {backup_dir}")
+                return False
+            
+            # 检查虚拟机目录是否存在于备份目录中
+            vm_backup_path = os.path.join(backup_dir, vm_name)
+            if os.path.exists(vm_backup_path) and os.path.isdir(vm_backup_path):
+                # 检查是否包含.vbox文件（确认是虚拟机目录）
+                vbox_files = [f for f in os.listdir(vm_backup_path) if f.endswith('.vbox')]
+                if vbox_files:
+                    logger.debug(f"虚拟机 {vm_name} 在备份目录中找到")
+                    return True
+            
+            logger.debug(f"虚拟机 {vm_name} 在备份目录中未找到")
+            return False
+            
         except Exception as e:
             logger.error(f"检查虚拟机 {vm_name} 删除状态失败: {e}")
-            return False
+            # 如果从备份目录检查失败，回退到JSON文件
+            try:
+                deleted_vms = self.load_deleted_vms()
+                return vm_name in deleted_vms
+            except Exception as e2:
+                logger.error(f"回退到JSON文件检查也失败: {e2}")
+                return False
     
     def load_deleted_vms(self) -> List[str]:
         """加载已删除虚拟机列表"""
@@ -1960,9 +1991,7 @@ class VirtualBoxMonitor:
         except Exception as e:
             logger.error(f"保存已删除虚拟机列表失败: {e}")
     
-    def get_deleted_vms(self) -> List[str]:
-        """获取所有已删除的虚拟机列表"""
-        return self.load_deleted_vms()
+
     
     def _get_directory_size(self, directory_path: str) -> float:
         """计算目录大小（MB）"""
@@ -2164,6 +2193,10 @@ class VirtualBoxMonitor:
             monitor_logger.info(f"🚀 开始自动删除虚拟机: {vm_name}")
             monitor_logger.info(f"⏰ 删除时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
+            # 强制刷新日志输出
+            import sys
+            sys.stdout.flush()
+            
             # 检查自动删除是否启用
             logger.info(f"📋 检查自动删除配置...")
             if not self.auto_delete_enabled:
@@ -2204,7 +2237,11 @@ class VirtualBoxMonitor:
             
             # 添加更详细的停止过程日志
             try:
+                logger.info(f"🛑 开始执行停止虚拟机 {vm_name} 命令...")
+                monitor_logger.info(f"🛑 开始执行停止虚拟机 {vm_name} 命令...")
+                
                 stop_result = self.stop_vm(vm_name)
+                
                 logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
                 monitor_logger.info(f"🔄 停止虚拟机 {vm_name} 操作完成，结果: {stop_result}")
                 
@@ -2214,6 +2251,11 @@ class VirtualBoxMonitor:
                 else:
                     logger.info(f"✅ 虚拟机 {vm_name} 停止成功")
                     monitor_logger.info(f"✅ 虚拟机 {vm_name} 停止成功")
+                    
+                # 强制刷新日志输出
+                import sys
+                sys.stdout.flush()
+                
             except Exception as e:
                 logger.error(f"❌ 停止虚拟机 {vm_name} 时发生异常: {e}")
                 monitor_logger.error(f"❌ 停止虚拟机 {vm_name} 时发生异常: {e}")
@@ -2279,11 +2321,19 @@ class VirtualBoxMonitor:
             # 移动目录
             logger.info(f"🔄 开始移动虚拟机文件...")
             monitor_logger.info(f"🔄 开始移动虚拟机文件...")
+            
+            # 强制刷新日志输出
+            import sys
+            sys.stdout.flush()
+            
             import shutil
             shutil.move(vm_dir, backup_path)
             
             logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
             monitor_logger.info(f"✅ 虚拟机 {vm_name} 已成功移动到备份目录: {backup_path}")
+            
+            # 强制刷新日志输出
+            sys.stdout.flush()
             
             # 标记虚拟机为已删除状态
             logger.info(f"🏷️ 标记虚拟机为已删除状态...")
@@ -2306,6 +2356,9 @@ class VirtualBoxMonitor:
             monitor_logger.info(f"📁 备份位置: {backup_path}")
             monitor_logger.info(f"📊 删除原因: 启动次数 {current_count} 已达到阈值 {self.max_start_count}")
             monitor_logger.info("=" * 60)
+            
+            # 强制刷新日志输出
+            sys.stdout.flush()
             
             return True
             

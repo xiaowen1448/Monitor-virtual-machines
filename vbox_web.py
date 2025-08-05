@@ -99,11 +99,11 @@ def reload_config():
         logger.error(f"重新加载配置文件失败: {e}")
         return False
 
-def update_config_value(key, value):
-    """更新配置文件中的特定值"""
+def update_config_value_safe(key, value):
+    """安全地更新配置文件中的特定值，保持原有结构"""
     try:
-        logger.info(f"=== 配置文件更新调试信息 ===")
-        logger.info(f"开始更新配置文件参数: {key} = {value}")
+        logger.info(f"=== 安全配置文件更新调试信息 ===")
+        logger.info(f"开始安全更新配置文件参数: {key} = {value}")
         logger.info(f"参数类型: {type(value)}")
         logger.info(f"更新时间: {datetime.now().isoformat()}")
         
@@ -111,115 +111,83 @@ def update_config_value(key, value):
         
         # 读取当前配置文件
         with open(config_file, 'r', encoding='utf-8') as f:
-            content = f.read()
+            lines = f.readlines()
         
-        logger.info(f"配置文件路径: {config_file}")
-        logger.info(f"配置文件大小: {len(content)} 字符")
+        # 查找目标配置项
+        target_line_index = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f'{key} ='):
+                target_line_index = i
+                break
         
-        # 使用正则表达式查找并替换配置项
-        import re
+        if target_line_index == -1:
+            logger.error(f"配置文件中未找到配置项: {key}")
+            return False
         
+        # 获取原始行的缩进
+        original_line = lines[target_line_index]
+        indent = len(original_line) - len(original_line.lstrip())
+        indent_str = ' ' * indent
+        
+        # 根据值类型生成新的行
         if isinstance(value, bool):
-            pattern = rf'^{key}\s*=\s*.*$'
-            replacement = f'{key} = {value}'
+            new_line = f'{indent_str}{key} = {value}\n'
         elif isinstance(value, str):
-            pattern = rf'^{key}\s*=\s*.*$'
-            replacement = f'{key} = "{value}"'
+            new_line = f'{indent_str}{key} = "{value}"\n'
         elif isinstance(value, (int, float)):
-            pattern = rf'^{key}\s*=\s*.*$'
-            replacement = f'{key} = {value}'
-        elif isinstance(value, dict):
-            # 处理字典类型
-            dict_str = '{\n'
-            for k, v in value.items():
-                if isinstance(v, str):
-                    dict_str += f"    '{k}': '{v}',\n"
-                else:
-                    dict_str += f"    '{k}': {v},\n"
-            dict_str += '}'
-            pattern = rf'^{key}\s*=\s*{{[\s\S]*?^}}'
-            replacement = f'{key} = {dict_str}'
+            new_line = f'{indent_str}{key} = {value}\n'
         else:
-            pattern = rf'^{key}\s*=\s*.*$'
-            replacement = f'{key} = {repr(value)}'
+            new_line = f'{indent_str}{key} = {repr(value)}\n'
         
-        # 添加调试日志
-        logger.debug(f"查找配置项: {key}")
-        logger.debug(f"使用模式: {pattern}")
-        logger.debug(f"替换为: {replacement}")
+        # 更新行
+        old_line = lines[target_line_index]
+        lines[target_line_index] = new_line
         
-        # 查找当前配置项的值
-        current_match = re.search(pattern, content, flags=re.MULTILINE)
-        if current_match:
-            current_value = current_match.group(0)
-            logger.info(f"当前配置项值: {current_value}")
-        else:
-            logger.warning(f"未找到配置项 {key} 的当前值")
-            # 尝试更宽松的匹配
-            for i, line in enumerate(content.split('\n')):
-                if key in line and '=' in line:
-                    logger.info(f"找到包含 {key} 的行 {i+1}: {line.strip()}")
-                    break
-        
-        # 查找当前配置项的值
-        current_match = re.search(pattern, content, flags=re.MULTILINE)
-        if current_match:
-            current_value = current_match.group(0)
-            logger.info(f"当前配置项值: {current_value}")
-        else:
-            logger.warning(f"未找到配置项 {key} 的当前值")
-        
-        # 使用多行模式匹配
-        new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
-        
-        if new_content == content:
-            # 尝试使用简单的字符串替换
-            lines = content.split('\n')
-            updated = False
-            for i, line in enumerate(lines):
-                if line.strip().startswith(f'{key} ='):
-                    old_value = line.strip()
-                    if isinstance(value, bool):
-                        lines[i] = f'{key} = {value}'
-                    elif isinstance(value, str):
-                        lines[i] = f'{key} = "{value}"'
-                    elif isinstance(value, (int, float)):
-                        lines[i] = f'{key} = {value}'
-                    else:
-                        lines[i] = f'{key} = {repr(value)}'
-                    updated = True
-                    logger.info(f"使用简单替换更新配置项 {key}")
-                    logger.info(f"第 {i+1} 行: {old_value} -> {lines[i]}")
-                    break
-            
-            if updated:
-                new_content = '\n'.join(lines)
-            else:
-                logger.warning(f"未找到配置项 {key}")
-                # 输出配置文件的相关行用于调试
-                for i, line in enumerate(lines):
-                    if key in line:
-                        logger.debug(f"找到包含 {key} 的行 {i+1}: {line}")
-                return False
+        logger.info(f"更新配置项: {key}")
+        logger.info(f"原始行: {old_line.strip()}")
+        logger.info(f"新行: {new_line.strip()}")
         
         # 验证更新后的配置是否有语法错误
         try:
-            compile(new_content, config_file, 'exec')
-            logger.info("配置文件语法验证通过")
-        except SyntaxError as e:
-            logger.error(f"配置更新后产生语法错误: {e}")
+            # 创建一个临时文件来验证语法
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as temp_file:
+                temp_file.writelines(lines)
+                temp_file_path = temp_file.name
+            
+            try:
+                # 尝试编译临时文件
+                with open(temp_file_path, 'r', encoding='utf-8') as f:
+                    compile(f.read(), temp_file_path, 'exec')
+                logger.info("配置文件语法验证通过")
+                
+                # 如果验证通过，写回原文件
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    f.writelines(lines)
+                
+                logger.info(f"配置文件安全更新成功: {key} = {value}")
+                logger.info(f"=== 安全配置文件更新完成 ===")
+                return True
+                
+            except SyntaxError as e:
+                logger.error(f"配置更新后产生语法错误: {e}")
+                logger.error("回滚更改...")
+                return False
+            finally:
+                # 清理临时文件
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"语法验证过程中发生错误: {e}")
             return False
-        
-        # 写回配置文件
-        with open(config_file, 'w', encoding='utf-8') as f:
-            f.write(new_content)
-        
-        logger.info(f"配置文件更新成功: {key} = {value}")
-        logger.info(f"配置文件已保存到: {config_file}")
-        logger.info(f"=== 配置文件更新完成 ===")
-        return True
+            
     except Exception as e:
-        logger.error(f"更新配置项 {key} 失败: {e}")
+        logger.error(f"安全更新配置项 {key} 失败: {e}")
         logger.error(f"错误详情: {str(e)}")
         return False
 
@@ -233,15 +201,15 @@ def update_auto_monitor_config(enabled, interval, auto_start_enabled):
         
         # 更新AUTO_MONITOR_BUTTON_ENABLED
         logger.debug("更新AUTO_MONITOR_BUTTON_ENABLED...")
-        success &= update_config_value('AUTO_MONITOR_BUTTON_ENABLED', enabled)
+        success &= update_config_value_safe('AUTO_MONITOR_BUTTON_ENABLED', enabled)
         
         # 更新AUTO_MONITOR_INTERVAL_VALUE
         logger.debug("更新AUTO_MONITOR_INTERVAL_VALUE...")
-        success &= update_config_value('AUTO_MONITOR_INTERVAL_VALUE', interval)
+        success &= update_config_value_safe('AUTO_MONITOR_INTERVAL_VALUE', interval)
         
         # 更新AUTO_START_VM_BUTTON_ENABLED
         logger.debug("更新AUTO_START_VM_BUTTON_ENABLED...")
-        success &= update_config_value('AUTO_START_VM_BUTTON_ENABLED', auto_start_enabled)
+        success &= update_config_value_safe('AUTO_START_VM_BUTTON_ENABLED', auto_start_enabled)
         
         if success:
             # 重新加载配置
@@ -266,9 +234,9 @@ def update_web_refresh_config(enabled, interval):
             console_logger.info("自动刷新: 已禁用")
         
         # 更新启用状态
-        success1 = update_config_value('AUTO_REFRESH_BUTTON_ENABLED', enabled)
+        success1 = update_config_value_safe('AUTO_REFRESH_BUTTON_ENABLED', enabled)
         # 更新间隔
-        success2 = update_config_value('AUTO_REFRESH_INTERVAL_VALUE', interval)
+        success2 = update_config_value_safe('AUTO_REFRESH_INTERVAL_VALUE', interval)
         
         if success1 and success2:
             logger.info(f"Web自动刷新配置已更新: 启用={enabled}, 间隔={interval}秒")
@@ -331,12 +299,12 @@ except ImportError:
     # 生成带时间戳的日志文件名
     from datetime import datetime
     
-    def generate_log_filename(prefix):
-        """生成带时间戳的日志文件名"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"log/{prefix}_{timestamp}.log"
-    
-    WEB_LOG_FILE = generate_log_filename("vbox_web")
+    def generate_daily_log_filename(prefix):
+        """生成按天的日志文件名"""
+        date_str = datetime.now().strftime("%Y%m%d")
+        return f"log/{prefix}_{date_str}.log"
+
+    WEB_LOG_FILE = generate_daily_log_filename("vbox_web")
     LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_ENCODING = "utf-8"
     VERBOSE_LOGGING = True
@@ -1609,10 +1577,10 @@ def api_update_web_refresh_interval():
         logger.info(f"收到Web自动刷新配置更新请求: 启用={enabled}, 间隔={interval}秒")
         
         # 直接更新配置文件中的AUTO_REFRESH_BUTTON_ENABLED
-        success1 = update_config_value('AUTO_REFRESH_BUTTON_ENABLED', enabled)
+        success1 = update_config_value_safe('AUTO_REFRESH_BUTTON_ENABLED', enabled)
         
         # 直接更新配置文件中的AUTO_REFRESH_INTERVAL_VALUE
-        success2 = update_config_value('AUTO_REFRESH_INTERVAL_VALUE', interval)
+        success2 = update_config_value_safe('AUTO_REFRESH_INTERVAL_VALUE', interval)
         
         # 打印所有配置状态
         print_all_config_status()
@@ -1746,8 +1714,8 @@ def api_update_web_server_config():
         logger.info(f"收到Web服务器配置更新请求: host={new_host}, port={new_port}")
         
         # 更新配置文件
-        success1 = update_config_value('WEB_HOST', new_host)
-        success2 = update_config_value('WEB_PORT', new_port)
+        success1 = update_config_value_safe('WEB_HOST', new_host)
+        success2 = update_config_value_safe('WEB_PORT', new_port)
         
         if success1 and success2:
             # 重新加载配置
@@ -1836,7 +1804,7 @@ def api_update_config_parameter():
         logger.info(f"================================")
         
         # 使用update_config_value函数更新配置文件
-        if update_config_value(parameter_name, value):
+        if update_config_value_safe(parameter_name, value):
             logger.info(f"配置参数 {parameter_name} 更新成功，新值: {value}")
             
             # 打印所有配置状态
@@ -2183,19 +2151,38 @@ def api_save_auto_delete_config():
         
         # 更新配置文件
         success = True
-        success &= update_config_value('AUTO_DELETE_ENABLED', enabled)
-        success &= update_config_value('AUTO_DELETE_MAX_COUNT', max_count)
-        success &= update_config_value('AUTO_DELETE_BACKUP_DIR', backup_dir)
+        
+        # 更新AUTO_DELETE_ENABLED
+        logger.info(f"开始更新AUTO_DELETE_ENABLED: {enabled}")
+        success_enabled = update_config_value_safe('AUTO_DELETE_ENABLED', enabled)
+        success &= success_enabled
+        logger.info(f"AUTO_DELETE_ENABLED更新结果: {success_enabled}")
+        
+        # 更新AUTO_DELETE_MAX_COUNT
+        logger.info(f"开始更新AUTO_DELETE_MAX_COUNT: {max_count}")
+        success_max_count = update_config_value_safe('AUTO_DELETE_MAX_COUNT', max_count)
+        success &= success_max_count
+        logger.info(f"AUTO_DELETE_MAX_COUNT更新结果: {success_max_count}")
+        
+        # 暂时跳过AUTO_DELETE_BACKUP_DIR的更新，因为它是在条件语句中定义的
+        # success &= update_config_value('AUTO_DELETE_BACKUP_DIR', backup_dir)
+        
+        logger.info(f"自动删除配置更新总体结果: {success}")
         
         if success:
-            # 更新监控器中的配置
-            monitor = get_vbox_monitor()
-            monitor.set_auto_delete_config(enabled, max_count, backup_dir)
-            
-            # 打印所有配置状态
-            print_all_config_status()
-            
-            return jsonify({'success': True, 'message': '自动删除配置已保存'})
+            try:
+                # 更新监控器中的配置
+                monitor = get_vbox_monitor()
+                monitor.set_auto_delete_config(enabled, max_count, backup_dir)
+                
+                # 打印所有配置状态
+                print_all_config_status()
+                
+                return jsonify({'success': True, 'message': '自动删除配置已保存'})
+            except Exception as e:
+                logger.error(f"更新监控器配置失败: {e}")
+                # 即使监控器更新失败，配置文件已经更新成功，所以返回成功
+                return jsonify({'success': True, 'message': '自动删除配置已保存（监控器更新失败）'})
         else:
             return jsonify({'success': False, 'error': '配置更新失败'})
     except Exception as e:
@@ -2246,7 +2233,7 @@ def api_update_random_selection_config():
         enabled = data.get('enabled', True)
         
         # 更新配置文件
-        success = update_config_value('ENABLE_RANDOM_VM_SELECTION', enabled)
+        success = update_config_value_safe('ENABLE_RANDOM_VM_SELECTION', enabled)
         
         if success:
             return jsonify({'success': True, 'message': f'随机选择功能已{"启用" if enabled else "禁用"}'})
@@ -2284,24 +2271,7 @@ def api_manual_delete_vm(vm_name):
         logger.error(f"手动删除虚拟机失败: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/vm/deleted')
-@login_required
-def api_get_deleted_vms():
-    """获取已删除的虚拟机列表"""
-    try:
-        monitor = get_vbox_monitor()
-        deleted_vms = monitor.get_deleted_vms()
-        return jsonify({
-            'success': True,
-            'data': deleted_vms,
-            'message': f'获取已删除虚拟机列表成功，共 {len(deleted_vms)} 个'
-        })
-    except Exception as e:
-        logger.error(f"获取已删除虚拟机列表失败: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'获取已删除虚拟机列表失败: {str(e)}'
-        })
+
 
 # 在模块导入时初始化监控器
 if not init_monitor():

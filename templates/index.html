@@ -152,15 +152,7 @@
             border-color: #dee2e6;
         }
         
-        /* 确保分页控件始终可见 */
-        .d-flex.justify-content-between.align-items-center.mt-3 {
-            position: relative;
-            z-index: 100;
-            background-color: #f8f9fa;
-            border-top: 1px solid #dee2e6;
-            margin-top: 0 !important;
-            padding-top: 0.75rem;
-        }
+
         
         /* 缩小分页控件的字体 */
         .d-flex.justify-content-between.align-items-center.mt-3 .text-muted.small {
@@ -180,6 +172,22 @@
             height: calc(100vh - 20px);
             overflow: hidden;
             margin-bottom: 20px;
+        }
+        
+        /* 确保分页控件在容器外部，不被overflow hidden影响 */
+        .vm-list-card .card-body {
+            overflow: visible !important;
+        }
+        
+        /* 分页控件容器样式增强 */
+        .d-flex.justify-content-between.align-items-center.mt-3 {
+            position: sticky;
+            bottom: 0;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            padding: 0.75rem 0;
+            margin: 0;
+            z-index: 1000;
         }
         
         /* 去掉右侧最外边滚动条 */
@@ -390,6 +398,8 @@
             color: #dc3545 !important;
         }
         
+
+        
         .log-line .text-muted {
             color: #6c757d !important;
         }
@@ -428,7 +438,6 @@
         <div class="row bg-primary text-white p-3 flex-shrink-0">
             <div class="col">
                 <h3><i class="fas fa-server me-2"></i>VirtualBox虚拟机监控系统</h3>
-                <p class="mb-0">实时监控和管理VirtualBox虚拟机</p>
             </div>
             <div class="col-auto">
                 <div class="d-flex align-items-center">
@@ -485,6 +494,8 @@
                                         <option value="60">1分钟</option>
                                         <option value="300">5分钟</option>
                                         <option value="600">10分钟</option>
+                                        <option value="1800">30分钟</option>
+                                        <option value="3600">60分钟</option>
                                     </select>
                                 </div>
 
@@ -506,6 +517,9 @@
                                             <option value="6">6</option>
                                             <option value="8">8</option>
                                             <option value="10">10</option>
+                                            <option value="12">12</option>
+                                            <option value="15">15</option>
+                                            <option value="20">20</option>
                                         </select>
                                     </div>
                                 </div>
@@ -563,9 +577,6 @@
                         <button id="stopAllBtn" class="btn btn-warning w-100 mb-2">
                             <i class="fas fa-stop me-1"></i>停止所有虚拟机
                         </button>
-                        <button id="clearFailuresBtn" class="btn btn-outline-danger w-100 mb-2">
-                            <i class="fas fa-times-circle me-1"></i>清除失败标记
-                        </button>
                     </div>
                 </div>
             </div>
@@ -573,6 +584,7 @@
 
         <!-- 虚拟机列表 -->
         <div class="row mt-3 flex-grow-1 mb-3">
+            <!-- 虚拟机列表 -->
             <div class="col-12">
                 <div class="card vm-list-card">
                     <div class="card-header">
@@ -623,6 +635,8 @@
                     </div>
                 </div>
             </div>
+            
+
         </div>
 
         <!-- 虚拟机详情模态框 -->
@@ -1083,6 +1097,7 @@
                     if (!autoStartToggle.checked) {
                         console.log('启用自动删除时，建议启用自启动虚拟机');
                         showAlert('warning', '建议同时启用自启动虚拟机功能以确保自动删除正常工作');
+                        // 不阻止勾选，只是给出建议
                     }
                 }
                 
@@ -1140,11 +1155,7 @@
                 }
             });
 
-            document.getElementById('clearFailuresBtn').addEventListener('click', function() {
-                if (confirm('确定要清除所有启动失败标记吗？')) {
-                    clearAllStartFailures();
-                }
-            });
+
 
 
         }
@@ -1163,31 +1174,36 @@
             console.log(`API调用 ${apiName} 已记录，时间: ${new Date().toLocaleTimeString()}`);
             return false;
         }
+        
+        // 获取API节流时间
+        function getAPIThrottleTime(apiName) {
+            const throttleTimes = {
+                'loadVMs': 3000,           // 虚拟机列表：3秒
+                'checkWebRefreshConfig': 10000,  // Web刷新配置：10秒
+                'checkAutoMonitorConfig': 10000, // 自动监控配置：10秒
+                'updateVMStatus': 2000,     // 虚拟机状态更新：2秒
+                'default': 5000             // 默认：5秒
+            };
+            
+            return throttleTimes[apiName] || throttleTimes['default'];
+        }
 
         // 加载虚拟机列表（只获取文件名）
         async function loadVMs() {
-            // 从配置文件获取自动刷新间隔，作为节流时间
-            const autoRefreshIntervalElement = document.getElementById('autoRefreshInterval');
-            const refreshInterval = parseInt(autoRefreshIntervalElement.value) || 60;
-            const throttleTime = Math.max(refreshInterval * 1000, 30000); // 最小30秒
+            // 使用动态节流时间
+            const throttleTime = getAPIThrottleTime('loadVMs');
             
             // 检查是否需要节流
             if (shouldThrottleAPI('loadVMs', throttleTime)) {
                 return;
             }
             
-            console.log('开始加载虚拟机列表（仅文件名）...');
+            console.log('开始加载虚拟机列表...');
             try {
-                // 首先尝试新的API端点
-                console.log('尝试发送请求到 /api/vms/names');
-                let response = await fetch('/api/vms/names');
+                // 直接使用现有的API端点
+                console.log('发送请求到 /api/vms');
+                let response = await fetch('/api/vms');
                 console.log('收到响应:', response.status, response.statusText);
-                
-                // 如果新API不存在，回退到原来的API
-                if (response.status === 404) {
-                    console.log('新API端点不存在，回退到原来的API');
-                    response = await fetch('/api/vms');
-                }
                 
                 // 检查响应状态
                 if (!response.ok) {
@@ -1206,38 +1222,16 @@
                 console.log('解析响应数据:', data);
                 
                 if (data.success) {
-                    // 如果使用原来的API，直接使用返回的数据
-                    if (response.url.includes('/api/vms') && !response.url.includes('/names')) {
-                        vmList = data.data;
-                        console.log(`获取到 ${vmList.length} 个虚拟机:`, vmList);
-                        
-                        // 添加启动失败标记
-                        addStartFailureMarkers(vmList);
-                        
-                        displayVMs(vmList);
-                        updateLastUpdate(data.timestamp);
-                        updateVMCount(vmList.length);
-                        lastVMLoadTime = Date.now();
-                    } else {
-                        // 使用新的API，初始化虚拟机列表
-                        vmList = data.data.map(name => ({
-                            name: name,
-                            status: 'loading', // 初始状态为加载中
-                            uuid: '...',
-                            last_check: new Date().toISOString()
-                        }));
-                        
-                        console.log(`获取到 ${vmList.length} 个虚拟机文件名:`, vmList);
-                        
-                        // 立即显示虚拟机列表（仅文件名）
-                        displayVMs(vmList);
-                        updateLastUpdate(data.timestamp);
-                        updateVMCount(vmList.length);
-                        lastVMLoadTime = Date.now();
-                        
-                        // 异步获取虚拟机状态
-                        loadVMStatusesAsync();
-                    }
+                    vmList = data.data;
+                    console.log(`获取到 ${vmList.length} 个虚拟机:`, vmList);
+                    
+                    // 添加启动失败标记
+                    addStartFailureMarkers(vmList);
+                    
+                    displayVMs(vmList);
+                    updateLastUpdate(data.timestamp);
+                    updateVMCount(vmList.length);
+                    lastVMLoadTime = Date.now();
                 } else {
                     console.error('API返回错误:', data.message);
                     showAlert('danger', data.message);
@@ -1249,6 +1243,8 @@
                 displayVMs([]);
             }
         }
+
+
 
         // 显示虚拟机列表
         function displayVMs(vms) {
@@ -1575,10 +1571,18 @@
                 if (paginationRect.bottom > containerRect.bottom) {
                     const overflow = paginationRect.bottom - containerRect.bottom;
                     const currentMaxHeight = parseInt(container.style.maxHeight) || container.offsetHeight;
-                    const newMaxHeight = Math.max(200, currentMaxHeight - overflow - 20); // 额外留出20px边距
+                    const newMaxHeight = Math.max(200, currentMaxHeight - overflow - 50); // 额外留出50px边距
                     
                     container.style.maxHeight = `${newMaxHeight}px`;
-                    console.log(`调整容器高度确保分页控件可见: 新高度=${newMaxHeight}px`);
+                    console.log(`调整容器高度确保分页控件可见: 新高度=${newMaxHeight}px, 溢出=${overflow}px`);
+                }
+                
+                // 确保分页控件在视窗中可见
+                const viewportHeight = window.innerHeight;
+                if (paginationRect.bottom > viewportHeight) {
+                    // 如果分页控件超出视窗，滚动到分页控件位置
+                    paginationContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    console.log('分页控件超出视窗，已滚动到可见位置');
                 }
             }
         }
@@ -1588,6 +1592,11 @@
             const container = document.querySelector('.vm-list-container');
             if (container) {
                 const windowHeight = window.innerHeight;
+                
+
+                
+                // 分页控件高度（包括padding和margin）
+                const paginationHeight = 80; // 分页控件预估高度
                 
                 // 根据窗口高度设置动态比例的基础值（确保100%比例下分页控件可见）
                 let baseOffset = 500; // 默认基础偏移量
@@ -1600,12 +1609,15 @@
                     baseOffset = 500; // 大屏幕
                 }
                 
-                const maxHeight = Math.max(200, windowHeight - baseOffset); // 确保最小高度为200px
+                // 为分页控件预留空间
+                const adjustedBaseOffset = baseOffset + paginationHeight;
+                
+                const maxHeight = Math.max(200, windowHeight - adjustedBaseOffset); // 确保最小高度为200px
                 
                 container.style.maxHeight = `${maxHeight}px`;
                 container.style.height = 'auto';
                 
-                console.log(`动态比例计算容器高度: 窗口高度=${windowHeight}px, 基础偏移量=${baseOffset}px, 最大高度=${maxHeight}px`);
+                console.log(`动态比例计算容器高度: 窗口高度=${windowHeight}px, 基础偏移量=${adjustedBaseOffset}px, 分页控件高度=${paginationHeight}px, 最大高度=${maxHeight}px`);
             }
         }
 
@@ -2065,8 +2077,9 @@
                     // 不重新加载配置，避免无限循环
                     console.log('配置保存成功，跳过重新加载');
                 } else {
-                    console.error('保存Web自动刷新配置失败:', data.message);
-                    showAlert('danger', '保存Web自动刷新配置失败: ' + data.message);
+                    const errorMessage = data.error || data.message || '未知错误';
+                    console.error('保存Web自动刷新配置失败:', errorMessage);
+                    showAlert('danger', '保存Web自动刷新配置失败: ' + errorMessage);
                 }
             } catch (error) {
                 console.error('保存Web自动刷新配置失败:', error);
@@ -2312,8 +2325,8 @@
                     if (data.data.monitoring) {
                         statusElement.classList.add('monitoring-active');
                         statusElement.classList.remove('monitoring-inactive');
-                        // 只有在监控运行时才设置按钮状态，避免覆盖用户设置
-                        document.getElementById('monitoringToggle').checked = true;
+                        // 不要自动设置按钮状态，让用户自己控制
+                        // document.getElementById('monitoringToggle').checked = true;
                     } else {
                         statusElement.classList.remove('monitoring-active');
                         statusElement.classList.add('monitoring-inactive');
@@ -2336,6 +2349,8 @@
         function updateVMCount(count) {
             document.getElementById('vmCount').textContent = count;
         }
+
+
 
         // 显示提示消息
         function showAlert(type, message) {
@@ -2594,8 +2609,9 @@
                     console.log('自动删除配置保存成功');
                     showAlert('success', '自动删除配置已保存');
                 } else {
-                    console.error('保存自动删除配置失败:', data.message);
-                    showAlert('danger', '保存自动删除配置失败: ' + data.message);
+                    const errorMessage = data.error || data.message || '未知错误';
+                    console.error('保存自动删除配置失败:', errorMessage);
+                    showAlert('danger', '保存自动删除配置失败: ' + errorMessage);
                 }
             } catch (error) {
                 console.error('保存自动删除配置失败:', error);
@@ -2763,10 +2779,11 @@
                     if (data.success) {
                         console.log('自动监控配置保存成功');
                         showAlert('success', '自动监控配置已保存');
-                    } else {
-                        console.error('保存自动监控配置失败:', data.message);
-                        showAlert('danger', '保存自动监控配置失败: ' + data.message);
-                    }
+                                    } else {
+                    const errorMessage = data.error || data.message || '未知错误';
+                    console.error('保存自动监控配置失败:', errorMessage);
+                    showAlert('danger', '保存自动监控配置失败: ' + errorMessage);
+                }
                 } else {
                     console.log('自动监控已禁用，ENABLE_AUTO_MONITORING已保存为False');
                     showAlert('success', '自动监控已禁用，配置已保存');
@@ -3209,7 +3226,7 @@
         // 检查Web自动刷新配置
         async function checkWebRefreshConfig() {
             // 检查是否需要节流
-            if (shouldThrottleAPI('checkWebRefreshConfig', 15000)) {
+            if (shouldThrottleAPI('checkWebRefreshConfig', getAPIThrottleTime('checkWebRefreshConfig'))) {
                 return;
             }
             
@@ -3316,7 +3333,7 @@
         // 检查自动监控配置
         async function checkAutoMonitorConfig() {
             // 检查是否需要节流
-            if (shouldThrottleAPI('checkAutoMonitorConfig', 15000)) {
+            if (shouldThrottleAPI('checkAutoMonitorConfig', getAPIThrottleTime('checkAutoMonitorConfig'))) {
                 return;
             }
             
@@ -3494,32 +3511,7 @@
             });
         }
 
-        // 清除所有启动失败标记
-        async function clearAllStartFailures() {
-            try {
-                const response = await fetch('/api/vm/clear_all_failures', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    console.log('清除所有启动失败标记成功');
-                    showAlert('success', data.message);
-                    startFailureMap.clear(); // 清除前端缓存
-                    loadVMs(); // 重新加载虚拟机列表以更新显示
-                } else {
-                    console.error('清除启动失败标记失败:', data.message);
-                    showAlert('danger', data.message);
-                }
-            } catch (error) {
-                console.error('清除启动失败标记失败:', error);
-                showAlert('danger', '清除启动失败标记失败: ' + error.message);
-            }
-        }
+
 
         // 退出登录
         async function logout() {
