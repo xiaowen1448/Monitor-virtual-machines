@@ -1277,7 +1277,7 @@ class VirtualBoxMonitor:
                         import sys
                         if 'config' in sys.modules:
                             importlib.reload(sys.modules['config'])
-                        from config import AUTO_MONITOR_INTERVAL_VALUE
+                        from config import AUTO_MONITOR_INTERVAL_VALUE, AUTO_START_VM_BUTTON_ENABLED, AUTO_START_STOPPED_NUM
                         new_interval = AUTO_MONITOR_INTERVAL_VALUE
                         
                         # 检查间隔是否发生变化
@@ -1286,6 +1286,11 @@ class VirtualBoxMonitor:
                             current_interval = new_interval
                         else:
                             monitor_logger.debug(f"监控间隔无变化: {current_interval}秒")
+                        
+                        # 更新自动启动配置
+                        self.auto_start_enabled = AUTO_START_VM_BUTTON_ENABLED
+                        monitor_logger.debug(f"自动启动配置已更新: {self.auto_start_enabled}")
+                        
                     except Exception as e:
                         monitor_logger.warning(f"重新加载配置失败，使用当前间隔: {e}")
                         # 如果重载失败，继续使用当前间隔

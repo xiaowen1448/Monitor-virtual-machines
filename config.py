@@ -227,7 +227,7 @@ AUTO_START_VM_BUTTON_ENABLED = True
 AUTO_START_STOPPED_VMS = True
 
 #  自动启动已停止的虚拟机数量，建议不要超出物理内存90%，总量/单个虚拟机内存大小
-AUTO_START_STOPPED_NUM = 2
+AUTO_START_STOPPED_NUM = 4
 # 是否启用随机选择虚拟机启动
 ENABLE_RANDOM_VM_SELECTION = True
 
