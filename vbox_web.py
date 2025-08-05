@@ -481,6 +481,19 @@ def init_monitor():
                 # 启动自动监控
                 start_time = datetime.now().isoformat()
                 monitor.start_monitoring(auto_monitor_interval, auto_start_enabled, start_time)
+                
+                # 格式化启动时间显示
+                try:
+                    start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                except:
+                    formatted_start_time = start_time
+                
+                # 后台日志控制台打印监控启动信息
+                auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
+                console_logger.info(f"监控已启动，间隔{auto_monitor_interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+                console_logger.info(f"监控将立即开始第一次检查，然后每 {auto_monitor_interval} 秒执行一次...")
+                
                 logger.info(f"自动监控已启动: 间隔={auto_monitor_interval}秒, 自动启动={auto_start_enabled}, 启动时间={start_time}")
                 logger.info(f"自动监控状态: 已开启，执行间隔: {auto_monitor_interval}秒")
             else:
@@ -762,6 +775,20 @@ def api_start_monitoring():
         
         monitor.start_monitoring(interval, auto_start, start_time)
         monitoring_status = True
+        
+        # 格式化启动时间显示
+        try:
+            if start_time:
+                start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+            else:
+                formatted_start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        except:
+            formatted_start_time = start_time or datetime.now().isoformat()
+        
+        # 后台日志控制台打印监控启动信息
+        auto_start_text = "自动启动模式" if auto_start else "仅监控模式"
+        console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
         
         auto_start_text = "启用" if auto_start else "禁用"
         logger.info(f"自动监控启动成功: 间隔={interval}秒, 自动启动={auto_start_text}")
@@ -1370,12 +1397,34 @@ def api_save_auto_monitor_config():
             # 如果监控正在运行且配置发生变化，重新启动监控
             if monitor and hasattr(monitor, 'monitoring') and monitor.monitoring:
                 logger.info(f"监控配置已更新，重新启动监控以应用新间隔: {interval}秒")
+                # 先停止监控
                 monitor.stop_monitoring()
-                time.sleep(1)  # 等待停止完成
+                # 等待更长时间确保监控线程完全停止
+                time.sleep(3)  # 增加等待时间
+                
+                # 再次检查监控状态，确保已完全停止
+                if hasattr(monitor, 'monitoring') and monitor.monitoring:
+                    logger.warning("监控未完全停止，强制重置监控状态")
+                    monitor.monitoring = False
+                    time.sleep(1)  # 再次等待
+                
                 if enabled:
                     # 记录新的启动时间
                     start_time = datetime.now().isoformat()
                     monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                    
+                    # 格式化启动时间显示
+                    try:
+                        start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                        formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                    except:
+                        formatted_start_time = start_time
+                    
+                    # 后台日志控制台打印监控启动信息
+                    auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
+                    console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+                    console_logger.info(f"监控将立即开始第一次检查，然后每 {interval} 秒执行一次...")
+                    
                     logger.info(f"自动监控已重新启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
                 else:
                     logger.info("自动监控状态: 已关闭")
@@ -1383,6 +1432,19 @@ def api_save_auto_monitor_config():
                 # 如果监控未运行但配置为启用，启动监控
                 start_time = datetime.now().isoformat()
                 monitor.start_monitoring(interval, auto_start_enabled, start_time)
+                
+                # 格式化启动时间显示
+                try:
+                    start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+                except:
+                    formatted_start_time = start_time
+                
+                # 后台日志控制台打印监控启动信息
+                auto_start_text = "自动启动模式" if auto_start_enabled else "仅监控模式"
+                console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
+                console_logger.info(f"监控将立即开始第一次检查，然后每 {interval} 秒执行一次...")
+                
                 logger.info(f"自动监控已启动: 间隔={interval}秒, 自动启动={auto_start_enabled}")
             else:
                 logger.info("自动监控状态: 已关闭")
@@ -2093,6 +2155,48 @@ def api_get_vm_start_count(vm_name):
         return jsonify({'success': True, 'start_count': count})
     except Exception as e:
         logger.error(f"获取虚拟机启动次数失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/vms/start_counts')
+@login_required
+def api_get_all_vm_start_counts():
+    """获取所有虚拟机的启动次数"""
+    try:
+        monitor = get_vbox_monitor()
+        start_counts = monitor.vm_start_counts.copy()
+        return jsonify({'success': True, 'start_counts': start_counts})
+    except Exception as e:
+        logger.error(f"获取所有虚拟机启动次数失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/config/random_selection')
+@login_required
+def api_get_random_selection_config():
+    """获取随机选择配置"""
+    try:
+        from config import ENABLE_RANDOM_VM_SELECTION
+        return jsonify({'success': True, 'enabled': ENABLE_RANDOM_VM_SELECTION})
+    except Exception as e:
+        logger.error(f"获取随机选择配置失败: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/config/random_selection', methods=['POST'])
+@login_required
+def api_update_random_selection_config():
+    """更新随机选择配置"""
+    try:
+        data = request.get_json()
+        enabled = data.get('enabled', True)
+        
+        # 更新配置文件
+        success = update_config_value('ENABLE_RANDOM_VM_SELECTION', enabled)
+        
+        if success:
+            return jsonify({'success': True, 'message': f'随机选择功能已{"启用" if enabled else "禁用"}'})
+        else:
+            return jsonify({'success': False, 'error': '配置更新失败'})
+    except Exception as e:
+        logger.error(f"更新随机选择配置失败: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/vm/<vm_name>/reset_count', methods=['POST'])

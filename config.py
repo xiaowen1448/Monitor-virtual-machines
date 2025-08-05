@@ -223,6 +223,9 @@ AUTO_START_STOPPED_VMS = True
 #  自动启动已停止的虚拟机数量，建议不要超出物理内存90%，总量/单个虚拟机内存大小
 AUTO_START_STOPPED_NUM = 2
 
+# 是否启用随机选择虚拟机启动
+ENABLE_RANDOM_VM_SELECTION = True
+
 # 自动删除虚拟机配置
 AUTO_DELETE_ENABLED = False
 AUTO_DELETE_MAX_COUNT = 10

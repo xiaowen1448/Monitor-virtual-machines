@@ -140,6 +140,10 @@ class VirtualBoxMonitor:
         self.last_monitor_results = []  # 存储最后一次监控结果
         self.monitor_start_time = None  # 监控启动时间
         
+        # 状态变化检测相关
+        self.last_vm_status = {}  # 存储上次的虚拟机状态
+        self.status_change_detected = False  # 状态变化标志
+        
         # 虚拟机启动次数管理
         self.vm_config_file = "vm.config"
         self.vm_start_counts = {}  # 存储虚拟机启动次数
@@ -780,6 +784,52 @@ class VirtualBoxMonitor:
         
         return vm_status_list
     
+    def _detect_status_changes(self, current_vm_status: List[Dict]) -> bool:
+        """
+        检测虚拟机状态变化
+        
+        Args:
+            current_vm_status: 当前虚拟机状态列表
+            
+        Returns:
+            bool: 是否有状态变化
+        """
+        if not self.last_vm_status:
+            # 第一次运行，记录状态但不报告变化
+            self.last_vm_status = {vm['name']: vm['status'] for vm in current_vm_status}
+            return False
+        
+        # 创建当前状态字典
+        current_status = {vm['name']: vm['status'] for vm in current_vm_status}
+        
+        # 检测变化
+        changes_detected = False
+        
+        # 检查新增的虚拟机
+        for vm_name, status in current_status.items():
+            if vm_name not in self.last_vm_status:
+                monitor_logger.info(f"检测到新增虚拟机: {vm_name} (状态: {status})")
+                changes_detected = True
+        
+        # 检查状态变化的虚拟机
+        for vm_name, status in current_status.items():
+            if vm_name in self.last_vm_status:
+                last_status = self.last_vm_status[vm_name]
+                if status != last_status:
+                    monitor_logger.info(f"检测到虚拟机状态变化: {vm_name} {last_status} -> {status}")
+                    changes_detected = True
+        
+        # 检查删除的虚拟机
+        for vm_name in self.last_vm_status:
+            if vm_name not in current_status:
+                monitor_logger.info(f"检测到虚拟机删除: {vm_name}")
+                changes_detected = True
+        
+        # 更新上次状态
+        self.last_vm_status = current_status.copy()
+        
+        return changes_detected
+    
     def auto_start_stopped_vms(self) -> List[Dict]:
         """
         自动启动已停止的虚拟机
@@ -874,22 +924,73 @@ class VirtualBoxMonitor:
         
         # 检查是否已达到目标运行数量
         if running_count >= max_start_num:
-            monitor_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
-            console_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
+            monitor_logger.debug(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
+            # console_logger.info(f"当前运行中的虚拟机数量({running_count})已达到或超过设定数量({max_start_num})，无需启动新虚拟机")
             # 返回空结果，表示无需操作
             return results
         
         # 计算还可以启动的虚拟机数量
         remaining_slots = max_start_num - running_count
-        monitor_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
-        console_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
+        monitor_logger.debug(f"还可以启动的虚拟机数量: {remaining_slots}")
+        # console_logger.info(f"还可以启动的虚拟机数量: {remaining_slots}")
         
         # 检查是否有可启动的虚拟机
         stopped_vms = [vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']]
         if not stopped_vms:
-            monitor_logger.info("没有发现可启动的虚拟机")
-            console_logger.info("没有发现可启动的虚拟机")
+            monitor_logger.debug("没有发现可启动的虚拟机")
+            # console_logger.info("没有发现可启动的虚拟机")
             return results
+        
+        # 检查是否启用随机选择
+        try:
+            from config import ENABLE_RANDOM_VM_SELECTION
+            enable_random = ENABLE_RANDOM_VM_SELECTION
+        except ImportError:
+            enable_random = True  # 默认启用随机选择
+            monitor_logger.warning("无法导入ENABLE_RANDOM_VM_SELECTION配置，使用默认值True")
+        
+        # 如果启用随机选择，对虚拟机列表进行智能随机排序
+        if enable_random and len(stopped_vms) > 1:
+            import random
+            
+            # 获取每个虚拟机的启动次数
+            vm_start_counts = {}
+            for vm in stopped_vms:
+                vm_start_counts[vm['name']] = self.get_vm_start_count(vm['name'])
+            
+            # 按启动次数排序，启动次数少的优先
+            stopped_vms.sort(key=lambda x: vm_start_counts.get(x['name'], 0))
+            
+            # 对启动次数相同的虚拟机进行随机排序
+            current_count = None
+            start_idx = 0
+            
+            for i, vm in enumerate(stopped_vms):
+                vm_count = vm_start_counts.get(vm['name'], 0)
+                
+                if current_count is None:
+                    current_count = vm_count
+                elif vm_count != current_count:
+                    # 对启动次数相同的虚拟机进行随机排序
+                    if i - start_idx > 1:
+                        random.shuffle(stopped_vms[start_idx:i])
+                    current_count = vm_count
+                    start_idx = i
+            
+            # 处理最后一组
+            if len(stopped_vms) - start_idx > 1:
+                random.shuffle(stopped_vms[start_idx:])
+            
+            monitor_logger.info(f"启用智能随机选择，已对 {len(stopped_vms)} 个虚拟机进行排序")
+            console_logger.info(f"启用智能随机选择，已对 {len(stopped_vms)} 个虚拟机进行排序")
+            
+            # 记录启动次数信息
+            for vm in stopped_vms[:min(3, len(stopped_vms))]:  # 只显示前3个
+                count = vm_start_counts.get(vm['name'], 0)
+                monitor_logger.info(f"虚拟机 {vm['name']} 启动次数: {count}")
+        else:
+            monitor_logger.info(f"使用顺序选择，将按扫描顺序启动虚拟机")
+            console_logger.info(f"使用顺序选择，将按扫描顺序启动虚拟机")
         
         started_count = 0
         failed_vms = []  # 记录启动失败的虚拟机
@@ -940,6 +1041,8 @@ class VirtualBoxMonitor:
                 
                 if success:
                     vm_started = True
+                    # 记录虚拟机启动次数
+                    self.increment_vm_start_count(vm['name'])
                     console_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count + 1}个)")
                     monitor_logger.info(f"自动启动虚拟机 {vm['name']} 成功 (第{started_count + 1}个)")
                 else:
@@ -994,14 +1097,31 @@ class VirtualBoxMonitor:
         if self.monitoring:
             console_logger.info("监控配置已更新，重新启动监控以应用新设置")
             monitor_logger.info("监控配置已更新，重新启动监控以应用新设置")
-            self.stop_monitoring()
+            # 静默停止监控，不输出停止日志
+            self._silent_stop_monitoring()
             # 等待一小段时间确保监控线程完全停止
-            time.sleep(1)
+            time.sleep(2)  # 增加等待时间
+            
+            # 确保监控状态已重置
+            if self.monitoring:
+                monitor_logger.warning("监控状态未正确重置，强制重置")
+                self.monitoring = False
         
         self.monitoring = True
         self.auto_start_enabled = auto_start
         self.last_monitor_results = []
         self.monitor_start_time = start_time or datetime.now().isoformat()
+        
+        # 格式化启动时间显示
+        try:
+            start_datetime = datetime.fromisoformat(self.monitor_start_time.replace('Z', '+00:00'))
+            formatted_start_time = start_datetime.strftime('%Y/%m/%d %H:%M:%S')
+        except:
+            formatted_start_time = self.monitor_start_time
+        
+        # 后台日志控制台打印监控启动信息
+        auto_start_text = "自动启动模式" if auto_start else "仅监控模式"
+        console_logger.info(f"监控已启动，间隔{interval}秒，{auto_start_text}，启动时间: {formatted_start_time}")
         
         logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
         monitor_logger.info(f"自动监控已启动，间隔: {interval}秒，自动启动: {auto_start}")
@@ -1028,14 +1148,52 @@ class VirtualBoxMonitor:
                     monitor_logger.warning(f"时间计算错误，立即开始监控: {e}")
             
             monitor_logger.info(f"开始监控循环，间隔: {interval}秒")
+            
+            # 保存初始间隔值，使用动态获取的最新值
+            try:
+                from config import AUTO_MONITOR_INTERVAL_VALUE
+                current_interval = AUTO_MONITOR_INTERVAL_VALUE
+            except ImportError:
+                current_interval = interval
+                monitor_logger.warning("无法获取AUTO_MONITOR_INTERVAL_VALUE配置，使用传入的间隔值")
+            
+            # 立即执行第一次检查
+            monitor_logger.info("立即执行第一次监控检查...")
+            
+            # 记录监控循环开始时间
+            loop_start_time = time.time()
+            monitor_logger.info(f"监控循环开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
             while self.monitoring:
                 try:
                     # 记录本次执行开始时间
                     execution_start_time = time.time()
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    monitor_logger.info(f"开始执行监控检查 - {current_time}")
                     
-                    logger.info("执行自动监控检查...")
-                    monitor_logger.info("执行自动监控检查...")
-                    monitor_logger.info(f"自动监控状态: 正在执行，间隔: {interval}秒")
+                    # 动态获取最新的配置
+                    try:
+                        import importlib
+                        import sys
+                        if 'config' in sys.modules:
+                            importlib.reload(sys.modules['config'])
+                        from config import AUTO_MONITOR_INTERVAL_VALUE
+                        new_interval = AUTO_MONITOR_INTERVAL_VALUE
+                        
+                        # 检查间隔是否发生变化
+                        if new_interval != current_interval:
+                            monitor_logger.info(f"检测到监控间隔变化: {current_interval}秒 -> {new_interval}秒")
+                            current_interval = new_interval
+                        else:
+                            monitor_logger.debug(f"监控间隔无变化: {current_interval}秒")
+                    except Exception as e:
+                        monitor_logger.warning(f"重新加载配置失败，使用当前间隔: {e}")
+                        # 如果重载失败，继续使用当前间隔
+                        # current_interval 已经在循环开始时设置为 interval
+                    
+                    logger.debug("执行自动监控检查...")
+                    monitor_logger.debug("执行自动监控检查...")
+                    monitor_logger.debug(f"自动监控状态: 正在执行，间隔: {interval}秒，当前间隔: {current_interval}秒")
                     
                     # 移除VirtualBox服务检测，直接执行监控任务
                     
@@ -1054,6 +1212,9 @@ class VirtualBoxMonitor:
                     stopped_vms = [vm for vm in vm_status_list if vm['status'] in ['poweroff', 'aborted']]  # 包括aborted状态
                     error_vms = [vm for vm in vm_status_list if vm['status'] in ['error', 'unknown']]  # 排除aborted，因为它已计入stopped_vms
                     
+                    # 检测状态变化
+                    status_changed = self._detect_status_changes(vm_status_list)
+                    
                     # 记录状态监控结果
                     status_result = {
                         'timestamp': datetime.now().isoformat(),
@@ -1065,22 +1226,26 @@ class VirtualBoxMonitor:
                         'auto_start_enabled': self.auto_start_enabled
                     }
                     
-                    # 精简状态统计输出
-                    status_summary = f"虚拟机状态：运行中 {len(running_vms)}台，已关闭 {len(stopped_vms)}台，暂停 {len(paused_vms)}台，异常 {len(error_vms)}台"
-                    console_logger.info(status_summary)
-                    
-                    # 确保"发现已停止的虚拟机"的数量与状态统计一致
-                    if stopped_vms_for_auto_start:
-                        console_logger.info(f"发现 {len(stopped_vms)} 个已停止的虚拟机")
+                    # 只在状态发生变化时输出详细日志
+                    if status_changed:
+                        # 精简状态统计输出
+                        status_summary = f"虚拟机状态：运行中 {len(running_vms)}台，已关闭 {len(stopped_vms)}台，暂停 {len(paused_vms)}台，异常 {len(error_vms)}台"
+                        console_logger.info(status_summary)
+                        
+                        # 确保"发现已停止的虚拟机"的数量与状态统计一致
+                        if stopped_vms_for_auto_start:
+                            console_logger.info(f"发现 {len(stopped_vms)} 个已停止的虚拟机")
+                    else:
+                        # 状态未变化时，只记录调试信息
+                        monitor_logger.debug(f"虚拟机状态无变化: 运行中 {len(running_vms)}台，已关闭 {len(stopped_vms)}台，暂停 {len(paused_vms)}台，异常 {len(error_vms)}台")
                     
                     # 检查是否有已停止的虚拟机（只在监控任务中输出）
                     if stopped_vms_for_auto_start:
-                        # 移除重复的日志，因为上面已经输出了
-                        pass
-                        
                         # 检查自动启动是否启用
                         if self.auto_start_enabled:
-                            console_logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
+                            # 只在状态变化时输出自动启动日志
+                            if status_changed:
+                                console_logger.info("自动启动功能已启用，开始启动已停止的虚拟机...")
                             
                             # 调用自动启动方法
                             results = self.auto_start_stopped_vms()
@@ -1094,52 +1259,54 @@ class VirtualBoxMonitor:
                                 failed_count = sum(1 for r in results if not r['success'])
                                 total_operations = len(results)
                                 
-                                if stop_count > 0:
-                                    console_logger.info(f"停止 {stop_count} 个虚拟机")
-                                    monitor_logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
-                                elif start_count > 0:
-                                    if failed_count > 0:
-                                        console_logger.info(f"启动 {start_count} 个虚拟机，{failed_count} 个操作失败")
-                                        monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机，{failed_count} 个操作失败")
+                                # 只在有操作结果且状态变化时输出日志
+                                if status_changed and (stop_count > 0 or start_count > 0 or failed_count > 0):
+                                    if stop_count > 0:
+                                        console_logger.info(f"停止 {stop_count} 个虚拟机")
+                                        monitor_logger.info(f"本次检查执行了 {total_operations} 个操作，成功停止 {stop_count} 个虚拟机")
+                                    elif start_count > 0:
+                                        if failed_count > 0:
+                                            console_logger.info(f"启动 {start_count} 个虚拟机，{failed_count} 个操作失败")
+                                            monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机，{failed_count} 个操作失败")
+                                        else:
+                                            console_logger.info(f"启动 {start_count} 个虚拟机")
+                                            monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机")
                                     else:
-                                        console_logger.info(f"启动 {start_count} 个虚拟机")
-                                        monitor_logger.info(f"本次检查启动了 {start_count} 个虚拟机")
-                                else:
-                                    if failed_count > 0:
-                                        console_logger.warning(f"{failed_count} 个操作失败")
-                                        monitor_logger.warning(f"本次检查执行了 {total_operations} 个操作，但全部失败")
-                                    else:
-                                        # 使用详细的状态统计日志，不再显示简单的消息
-                                        pass
+                                        if failed_count > 0:
+                                            console_logger.warning(f"{failed_count} 个操作失败")
+                                            monitor_logger.warning(f"本次检查执行了 {total_operations} 个操作，但全部失败")
                                 
-                                # 记录详细的启动结果
-                                for result in results:
-                                    if result['action'] == 'start':
-                                        if result['success']:
-                                            monitor_logger.info(f"虚拟机 {result['name']} 启动成功")
-                                        else:
-                                            logger.warning(f"虚拟机 {result['name']} 启动失败")
-                                            monitor_logger.warning(f"虚拟机 {result['name']} 启动失败")
-                                    elif result['action'] == 'stop':
-                                        if result['success']:
-                                            monitor_logger.info(f"虚拟机 {result['name']} 停止成功")
-                                        else:
-                                            logger.warning(f"虚拟机 {result['name']} 停止失败")
-                                            monitor_logger.warning(f"虚拟机 {result['name']} 停止失败")
+                                # 记录详细的启动结果（只在状态变化时）
+                                if status_changed:
+                                    for result in results:
+                                        if result['action'] == 'start':
+                                            if result['success']:
+                                                monitor_logger.info(f"虚拟机 {result['name']} 启动成功")
+                                            else:
+                                                logger.warning(f"虚拟机 {result['name']} 启动失败")
+                                                monitor_logger.warning(f"虚拟机 {result['name']} 启动失败")
+                                        elif result['action'] == 'stop':
+                                            if result['success']:
+                                                monitor_logger.info(f"虚拟机 {result['name']} 停止成功")
+                                            else:
+                                                logger.warning(f"虚拟机 {result['name']} 停止失败")
+                                                monitor_logger.warning(f"虚拟机 {result['name']} 停止失败")
                             else:
                                 # 检查是否有启动失败的情况
                                 failed_vms = [vm for vm in stopped_vms_for_auto_start if vm.get('start_failure', False)]
-                                if failed_vms:
+                                if failed_vms and status_changed:
                                     console_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败")
                                     monitor_logger.warning(f"发现 {len(failed_vms)} 个虚拟机启动失败: {[vm['name'] for vm in failed_vms]}")
                                 else:
                                     # 使用详细的状态统计日志，不再显示简单的消息
                                     self.last_monitor_results = []
                         else:
-                            console_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
-                            monitor_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
-                            monitor_logger.info(f"仅执行状态监控，不进行自动启动操作")
-                            monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
+                            # 只在状态变化时输出禁用日志
+                            if status_changed:
+                                console_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
+                                monitor_logger.info(f"发现 {len(stopped_vms_for_auto_start)} 个已停止的虚拟机，但自动启动已禁用")
+                                monitor_logger.info(f"仅执行状态监控，不进行自动启动操作")
+                                monitor_logger.info(f"当前监控实例auto_start_enabled状态: {self.auto_start_enabled}")
                             self.last_monitor_results = []
                     else:
                         # 使用详细的状态统计日志，不再显示简单的消息
@@ -1154,15 +1321,40 @@ class VirtualBoxMonitor:
                 execution_time = time.time() - execution_start_time
                 monitor_logger.debug(f"本次监控执行耗时: {execution_time:.2f}秒")
                 
+                # 动态获取最新的间隔值
+                try:
+                    from config import AUTO_MONITOR_INTERVAL_VALUE
+                    new_interval = AUTO_MONITOR_INTERVAL_VALUE
+                    
+                    # 检查间隔是否发生变化
+                    if new_interval != current_interval:
+                        monitor_logger.info(f"检测到监控间隔变化: {current_interval}秒 -> {new_interval}秒")
+                        current_interval = new_interval
+                except ImportError:
+                    # 如果无法获取配置，使用保存的间隔值
+                    monitor_logger.warning("无法获取AUTO_MONITOR_INTERVAL_VALUE配置，使用默认值300秒")
+                    current_interval = 300
+                
                 # 计算需要等待的时间，确保严格按照间隔执行
-                wait_time = max(0, interval - execution_time)
+                # 使用动态获取的最新间隔值，确保配置变化时能及时生效
+                wait_time = max(0, current_interval - execution_time)
+                monitor_logger.debug(f"本次执行耗时: {execution_time:.2f}秒，设定间隔: {current_interval}秒，等待时间: {wait_time:.2f}秒")
+                
                 if wait_time > 0:
                     next_execution_time = datetime.now() + timedelta(seconds=wait_time)
-                    monitor_logger.info(f"自动监控等待 {wait_time:.2f} 秒后执行下次检查")
-                    monitor_logger.info(f"下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                    monitor_logger.debug(f"自动监控等待 {wait_time:.2f} 秒后执行下次检查 (间隔: {current_interval}秒)")
+                    monitor_logger.debug(f"下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
                     time.sleep(wait_time)
                 else:
-                    monitor_logger.warning(f"自动监控执行时间 ({execution_time:.2f}秒) 超过了设定间隔 ({interval}秒)，立即执行下次检查")
+                    monitor_logger.warning(f"自动监控执行时间 ({execution_time:.2f}秒) 超过了设定间隔 ({current_interval}秒)，立即执行下次检查")
+                    next_execution_time = datetime.now()
+                
+                # 添加调试信息
+                monitor_logger.debug(f"监控循环完成，等待时间: {wait_time:.2f}秒，下次执行时间: {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # 记录本次循环完成时间
+                loop_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                monitor_logger.info(f"本次监控检查完成 - {loop_completion_time}")
         
         self.monitor_thread = threading.Thread(target=monitor_task, daemon=MONITOR_THREAD_DAEMON)
         self.monitor_thread.start()
@@ -1177,12 +1369,48 @@ class VirtualBoxMonitor:
         monitor_logger.info("自动监控已停止")
         monitor_logger.info("自动监控状态: 已关闭")
         
-        if self.monitor_thread:
+        if self.monitor_thread and self.monitor_thread.is_alive():
             # 从配置文件获取超时时间
             from config import VM_STATUS_TIMEOUT
             thread_timeout = min(VM_STATUS_TIMEOUT, 10)  # 线程停止使用较短超时
+            monitor_logger.info(f"等待监控线程停止，超时时间: {thread_timeout}秒")
             self.monitor_thread.join(timeout=thread_timeout)
-            monitor_logger.debug("监控线程已停止")
+            
+            if self.monitor_thread.is_alive():
+                monitor_logger.warning("监控线程未在超时时间内停止，强制终止")
+                # 在Python中无法强制终止线程，但可以设置标志
+                self.monitoring = False
+            else:
+                monitor_logger.info("监控线程已成功停止")
+        
+        # 重置监控线程引用
+        self.monitor_thread = None
+    
+    def _silent_stop_monitoring(self):
+        """静默停止监控（不输出停止日志）"""
+        if not self.monitoring:
+            return
+        
+        self.monitoring = False
+        # 不输出停止日志，只记录到监控日志
+        monitor_logger.info("自动监控已停止（静默模式）")
+        
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            # 从配置文件获取超时时间
+            from config import VM_STATUS_TIMEOUT
+            thread_timeout = min(VM_STATUS_TIMEOUT, 10)  # 线程停止使用较短超时
+            monitor_logger.info(f"等待监控线程停止，超时时间: {thread_timeout}秒")
+            self.monitor_thread.join(timeout=thread_timeout)
+            
+            if self.monitor_thread.is_alive():
+                monitor_logger.warning("监控线程未在超时时间内停止，强制终止")
+                # 在Python中无法强制终止线程，但可以设置标志
+                self.monitoring = False
+            else:
+                monitor_logger.info("监控线程已成功停止")
+        
+        # 重置监控线程引用
+        self.monitor_thread = None
     
     def get_vm_info(self, vm_name: str) -> Optional[Dict]:
         """

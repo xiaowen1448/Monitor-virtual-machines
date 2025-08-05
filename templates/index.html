@@ -825,48 +825,24 @@
                 });
             });
 
-            // 自动刷新间隔变化
+            // 自动刷新间隔变化（现在与监控间隔同步）
             document.getElementById('autoRefreshInterval').addEventListener('change', function() {
                 const interval = parseInt(this.value);
                 const autoRefreshToggle = document.getElementById('autoRefreshToggle');
                 
-                console.log(`自动刷新间隔变更: ${interval}秒`);
+                console.log(`自动刷新间隔变更: ${interval}秒 (与监控间隔同步)`);
                 
-                // 直接更新配置文件中的AUTO_REFRESH_INTERVAL_VALUE
-                updateConfigParameter('AUTO_REFRESH_INTERVAL_VALUE', interval).then(() => {
-                    // 配置更新成功后，立即通知后台重新加载配置
-                    console.log('自动刷新间隔已更新，立即通知后台重新加载配置...');
-                    updateConfigStatus('同步中...', '配置已更新，正在通知后台');
-                    
-                    // 通知后台重新加载配置
-                    fetch('/api/config/auto_refresh/reload', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }).then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log('后台自动刷新配置重新加载成功:', data.data);
-                            updateConfigStatus('已同步', '后台配置已更新');
-                        } else {
-                            console.error('后台自动刷新配置重新加载失败:', data.message);
-                            updateConfigStatus('同步失败', '后台配置更新失败');
-                        }
-                    }).catch(error => {
-                        console.error('通知后台重新加载配置失败:', error);
-                        updateConfigStatus('同步失败', '后台配置更新失败');
-                    });
-                    
-                    if (autoRefreshToggle.checked) {
-                        // 如果自动刷新正在运行，立即重新启动以应用新间隔
-                        console.log('自动刷新已启用，立即应用新间隔设置');
-                        startAutoRefresh();
-                    } else {
-                        // 如果自动刷新未启用，只更新UI显示
-                        console.log('自动刷新未启用，仅更新显示');
-                    }
-                });
+                // 自动刷新间隔现在与监控间隔保持一致，不需要单独保存
+                console.log('自动刷新间隔已与监控间隔同步，无需单独保存配置');
+                
+                if (autoRefreshToggle.checked) {
+                    // 如果自动刷新正在运行，立即重新启动以应用新间隔
+                    console.log('自动刷新已启用，立即应用新间隔设置');
+                    startAutoRefresh();
+                } else {
+                    // 如果自动刷新未启用，只更新UI显示
+                    console.log('自动刷新未启用，仅更新显示');
+                }
             });
 
             // 监控开关
@@ -979,6 +955,9 @@
                     // 更新监控结果检查间隔
                     updateMonitorResultsCheckInterval();
                     
+                    // 更新自动刷新间隔（与监控间隔匹配）
+                    updateAutoRefreshInterval();
+                    
                     // 延迟检查监控状态
                     setTimeout(() => {
                         console.log('延迟检查监控状态...');
@@ -1027,6 +1006,9 @@
                     
                     // 更新监控结果检查间隔
                     updateMonitorResultsCheckInterval();
+                    
+                    // 更新自动刷新间隔（与监控间隔匹配）
+                    updateAutoRefreshInterval();
                     
                     // 延迟检查监控状态
                     setTimeout(() => {
@@ -1968,15 +1950,15 @@
                 clearInterval(autoRefreshInterval);
             }
             
-            // 从配置文件获取间隔时间，确保与前台设置一致
-            const autoRefreshIntervalElement = document.getElementById('autoRefreshInterval');
-            const interval = parseInt(autoRefreshIntervalElement.value) * 1000; // 转换为毫秒
+            // 动态获取监控间隔，确保自动刷新与监控间隔匹配
+            const monitorInterval = getCurrentAutoRefreshInterval();
+            const interval = monitorInterval * 1000; // 转换为毫秒
             
             // 避免过短的刷新间隔，最小30秒
             const minInterval = 30000; // 30秒
             const actualInterval = Math.max(interval, minInterval);
             
-            console.log(`自动刷新配置: 前台设置=${interval/1000}秒, 实际间隔=${actualInterval/1000}秒`);
+            console.log(`自动刷新配置: 监控间隔=${monitorInterval}秒, 实际间隔=${actualInterval/1000}秒`);
             
             autoRefreshInterval = setInterval(() => {
                 // 只在页面可见时执行自动刷新
@@ -1988,7 +1970,7 @@
                 }
             }, actualInterval);
             
-            console.log(`自动刷新已启动，间隔: ${actualInterval/1000}秒`);
+            console.log(`自动刷新已启动，间隔: ${actualInterval/1000}秒 (与监控间隔匹配)`);
             
             // 避免频繁保存配置，只在必要时保存
             if (actualInterval !== interval) {
@@ -2003,6 +1985,14 @@
             }
             
             console.log('自动刷新已停止');
+        }
+        
+        // 更新自动刷新间隔（当监控间隔变化时调用）
+        function updateAutoRefreshInterval() {
+            if (autoRefreshInterval) {
+                console.log('检测到监控间隔变化，更新自动刷新间隔...');
+                startAutoRefresh();
+            }
         }
 
 
@@ -2107,6 +2097,15 @@
             // 监控结果检查间隔与监控间隔保持一致
             return monitorInterval;
         }
+        
+        // 获取当前自动刷新间隔（与监控间隔匹配）
+        function getCurrentAutoRefreshInterval() {
+            const monitorIntervalElement = document.getElementById('monitorInterval');
+            const monitorInterval = parseInt(monitorIntervalElement.value) || 30;
+            
+            // 自动刷新间隔与监控间隔保持一致
+            return monitorInterval;
+        }
 
         function stopMonitorResultsCheck() {
             if (monitorResultsInterval) {
@@ -2149,9 +2148,13 @@
                         console.debug('监控状态:', { monitoring, auto_start_enabled });
                     }
                     
-                    // 重新加载虚拟机列表以更新状态
-                    console.debug('重新加载虚拟机列表...');
-                    loadVMs();
+                    // 减少频繁的虚拟机列表重新加载，只在有实际变化时更新
+                    if (results && results.length > 0) {
+                        console.debug('有监控结果，重新加载虚拟机列表...');
+                        loadVMs();
+                    } else {
+                        console.debug('无监控结果，跳过虚拟机列表重新加载');
+                    }
                 } else {
                     console.debug('没有新的监控结果');
                 }
@@ -2577,10 +2580,10 @@
                     autoRefreshToggle.checked = refreshEnabled;
                     console.log('设置自动刷新按钮状态:', refreshEnabled);
                     
-                    // 设置自动刷新间隔
-                    const refreshInterval = config.interval_value || 60;
-                    autoRefreshInterval.value = refreshInterval;
-                    console.log('设置自动刷新间隔:', refreshInterval);
+                    // 设置自动刷新间隔（使用监控间隔）
+                    const monitorInterval = getCurrentAutoRefreshInterval();
+                    autoRefreshInterval.value = monitorInterval;
+                    console.log('设置自动刷新间隔（与监控间隔匹配）:', monitorInterval);
                     
                     // 恢复change事件监听器
                     autoRefreshToggle.onchange = originalChangeHandler;
@@ -2921,8 +2924,8 @@
             // 立即获取一次日志
             updateLogs();
             
-            // 每1秒更新一次日志（更频繁的更新）
-            logsUpdateInterval = setInterval(updateLogs, 1000);
+            // 每10秒更新一次日志（减少频率，避免频繁API调用）
+            logsUpdateInterval = setInterval(updateLogs, 10000);
         }
 
         // 停止日志更新
@@ -3198,13 +3201,13 @@
                         console.log('Web自动刷新按钮状态已同步');
                     }
                     
-                    // 检查间隔值是否需要更新
+                    // 检查间隔值是否需要更新（与监控间隔匹配）
                     const currentInterval = parseInt(autoRefreshInterval.value);
-                    const configInterval = config.interval_value || 60;
+                    const monitorInterval = getCurrentAutoRefreshInterval();
                     
-                    if (currentInterval !== configInterval) {
-                        console.log(`Web自动刷新间隔需要更新: 当前=${currentInterval}, 配置=${configInterval}`);
-                        autoRefreshInterval.value = configInterval;
+                    if (currentInterval !== monitorInterval) {
+                        console.log(`Web自动刷新间隔需要更新: 当前=${currentInterval}, 监控间隔=${monitorInterval}`);
+                        autoRefreshInterval.value = monitorInterval;
                         hasChanges = true;
                         
                         // 如果自动刷新正在运行，重新启动以应用新间隔
@@ -3213,7 +3216,7 @@
                             startAutoRefresh();
                         }
                     } else {
-                        console.log('Web自动刷新间隔已同步');
+                        console.log('Web自动刷新间隔已与监控间隔同步');
                     }
                     
                     if (hasChanges) {
